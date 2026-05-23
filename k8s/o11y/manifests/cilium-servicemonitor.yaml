@@ -5,7 +5,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: cilium-operator
-  namespace: observability
+  namespace: o11y
   labels:
     release: prometheus   # must match prometheus.serviceMonitorSelector in values/prometheus.yaml
 spec:

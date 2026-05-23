@@ -2,6 +2,24 @@
 
 k3s + Cilium + Envoy Gateway + ClickHouse o11y stack.
 
+```
+                    ┌─────────────────────────── k3s cluster ─────────────────────────────────────┐
+                    │ ┌── kube-system ──────────────┐  ┌── o11y ──────────────────────────────┐   │
+ ┌──────────────┐   │ │                             │  │                                      │   │
+ │ LAN          │───┼─┼─▶ Envoy Gateway        ─────┼──┼──────────────────────▶ Grafana       │   │
+ │ HTTPS/mkcert │   │ │   → Grafana · Hubble UI     │  │                       ▲    ▲         │   │
+ └──────────────┘   │ │            │                │  │                       │    │         │   │
+                    │ │            ▼                │  │  ClickHouse ──────────┘    │         │   │
+ ┌──────────────┐   │ │        Hubble UI            │  │      ▲                     │         │   │
+ │ Tailscale    │───┼─┼─▶ Tailscale Operator   ─────┼──┼──────┼─────────── Prometheus         │   │
+ │ HTTPS/LE     │   │ │   → Grafana · Hubble UI     │  │      │                    ▲          │   │
+ └──────────────┘   │ │                             │  │  ch-writer          remote_write     │   │
+                    │ │  Cilium + Hubble ────scrape──┼──┼──▶ Alloy (DaemonSet)               │   │
+                    │ │  :9962 · :9965              │  │       :4317/:4318 ◀── apps (OTLP)   │   │
+                    │ └─────────────────────────────┘  └──────────────────────────────────────┘   │
+                    └─────────────────────────────────────────────────────────────────────────────┘
+```
+
 | URL | Network |
 |---|---|
 | `https://grafana.roguequery.local` | LAN |
@@ -13,7 +31,7 @@ k3s + Cilium + Envoy Gateway + ClickHouse o11y stack.
 
 ## Bootstrap
 
-Run these once, in order, on the NUC.
+Run these once, in order, on the host.
 
 ### 1. k3s + Cilium
 
@@ -44,7 +62,7 @@ Generates a `*.roguequery.local` wildcard cert with mkcert and stores it as a Se
 Add to `/etc/hosts` on your desktop:
 
 ```
-192.168.86.101  roguequery.local grafana.roguequery.local hubble.roguequery.local
+<host-ip>  roguequery.local grafana.roguequery.local hubble.roguequery.local
 ```
 
 ### 3. Envoy Gateway
@@ -61,7 +79,7 @@ kubectl get gateway cluster-ingress -n envoy-gateway-system \
 # Expected: True
 ```
 
-### 4. Observability stack
+### 4. o11y stack
 
 ```bash
 make o11y-install
@@ -111,8 +129,8 @@ kubectl annotate namespace tailscale io.cilium/no-track-port="0"
 ```bash
 curl -I https://grafana.roguequery.local
 
-kubectl exec -n observability deploy/ch-writer -- \
-  curl -s "http://clickhouse.observability.svc.cluster.local:8123/?query=SELECT+count()+FROM+otel.otel_logs"
+kubectl exec -n o11y deploy/ch-writer -- \
+  curl -s "http://clickhouse.o11y.svc.cluster.local:8123/?query=SELECT+count()+FROM+otel.otel_logs"
 ```
 
 Alloy debug UI: `https://roguequery.local/alloy`
@@ -128,7 +146,7 @@ The wildcard cert covers any `*.roguequery.local` subdomain — no cert changes 
 ```yaml
 env:
   - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: "http://alloy.observability.svc.cluster.local:4317"
+    value: "http://alloy.o11y.svc.cluster.local:4317"
   - name: OTEL_SERVICE_NAME
     value: "myapp"
 ```
@@ -157,13 +175,13 @@ kubectl apply -f k8s/o11y/manifests/alloy-configmap.yaml  # hot-reloads, no rest
 
 **Grafana unreachable:**
 ```bash
-kubectl describe httproute grafana -n observability | grep -A5 Status
+kubectl describe httproute grafana -n o11y | grep -A5 Status
 kubectl get secret roguequery-local-tls -n envoy-gateway-system
 ```
 
 **ClickHouse not receiving data:**
 ```bash
-kubectl logs -n observability deploy/ch-writer --tail=30
+kubectl logs -n o11y deploy/ch-writer --tail=30
 ```
 
 **Tailscale proxy missing from Machines:**

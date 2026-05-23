@@ -2,7 +2,7 @@
 # to attach HTTPRoutes defined in other namespaces.
 #
 # Same-namespace refs need no grant:
-#   observability HTTPRoute  → observability Service  ✓ (no grant needed)
+#   o11y HTTPRoute  → o11y Service  ✓ (no grant needed)
 #   kube-system   HTTPRoute  → kube-system   Service  ✓ (no grant needed)
 #
 # Cross-namespace attachment (Gateway → Route namespace) does need grants:
@@ -11,8 +11,8 @@
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
-  name: gateway-to-observability
-  namespace: observability
+  name: gateway-to-o11y
+  namespace: o11y
 spec:
   from:
     - group: gateway.networking.k8s.io

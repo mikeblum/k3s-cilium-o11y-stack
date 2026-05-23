@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: alloy-config
-  namespace: observability
+  namespace: o11y
 data:
   config.alloy: |
     // ── OTLP ingestion from in-cluster services ───────────────────────────────
@@ -64,7 +64,7 @@ data:
     // cilium-operator is scraped via ServiceMonitor in cilium-servicemonitor.yaml
     prometheus.remote_write "local" {
       endpoint {
-        url = "http://prometheus-server.observability.svc.cluster.local/api/v1/write"
+        url = "http://prometheus-server.o11y.svc.cluster.local/api/v1/write"
       }
     }
 
@@ -84,7 +84,7 @@ data:
     // replace this block with a native clickhouse exporter and delete ch-writer.
     otelcol.exporter.otlp "ch_writer" {
       client {
-        endpoint = "ch-writer.observability.svc.cluster.local:4317"
+        endpoint = "ch-writer.o11y.svc.cluster.local:4317"
         tls { insecure = true }
       }
     }

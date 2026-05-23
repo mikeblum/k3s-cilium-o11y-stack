@@ -26,7 +26,7 @@ status:
 	kubectl get pods -n $(NS) -l app=operator
 	@echo ""
 	@echo "=== Ingress resources ==="
-	kubectl get ingress -n observability
+	kubectl get ingress -n o11y
 	kubectl get ingress -n kube-system
 	@echo ""
 	@echo "=== Tailscale proxy pods (one per Ingress) ==="
@@ -34,7 +34,7 @@ status:
 
 logs-grafana:
 	$(eval POD := $(shell kubectl get pod -n tailscale \
-		--selector=tailscale.com/parent-resource-type=ingress,tailscale.com/parent-resource=grafana-ts,tailscale.com/parent-resource-ns=observability \
+		--selector=tailscale.com/parent-resource-type=ingress,tailscale.com/parent-resource=grafana-ts,tailscale.com/parent-resource-ns=o11y \
 		-ojsonpath='{.items[0].metadata.name}'))
 	kubectl logs $(POD) -n tailscale -f
 

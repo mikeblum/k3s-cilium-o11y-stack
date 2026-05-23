@@ -3,7 +3,7 @@ HELM_REPOS := \
 	grafana=https://grafana.github.io/helm-charts \
 	prometheus-community=https://prometheus-community.github.io/helm-charts
 
-NS := observability
+NS := o11y
 
 .PHONY: repos install uninstall status routes
 
