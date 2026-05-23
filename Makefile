@@ -1,4 +1,7 @@
 KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
+# Primary outbound IP — follows the routing table so it picks the right NIC
+# automatically. Override with: make k3s-install NODE_IP=192.168.x.y
+NODE_IP ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
 export KUBECONFIG
 
 .PHONY: help \
@@ -35,7 +38,7 @@ help:
 # ─── k3s ─────────────────────────────────────────────────────────────────────
 
 k3s-install:
-	@bash infra/k3s/install.sh
+	@NODE_IP=$(NODE_IP) bash infra/k3s/install.sh
 
 k3s-uninstall:
 	@bash infra/k3s/uninstall.sh
@@ -43,10 +46,10 @@ k3s-uninstall:
 # ─── Cilium ──────────────────────────────────────────────────────────────────
 
 cilium-install:
-	@bash infra/cilium/install.sh
+	@NODE_IP=$(NODE_IP) bash infra/cilium/install.sh
 
 cilium-upgrade:
-	@CILIUM_VERSION=$(CILIUM_VERSION) bash infra/cilium/install.sh
+	@NODE_IP=$(NODE_IP) CILIUM_VERSION=$(CILIUM_VERSION) bash infra/cilium/install.sh
 
 cilium-apply:
 	@kubectl apply -f manifests/cilium/

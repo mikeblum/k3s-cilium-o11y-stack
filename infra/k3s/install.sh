@@ -7,7 +7,9 @@ set -euo pipefail
 # Disables: flannel, network-policy, kube-proxy, traefik, servicelb
 # Cilium handles all of the above via eBPF + Envoy.
 
-NODE_IP="${NODE_IP:-$(hostname -I | awk '{print $1}')}"
+# Resolve primary outbound IP via routing table — picks the right interface
+# even on machines with multiple NICs or bridge adapters.
+NODE_IP="${NODE_IP:-$(ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}')}"
 
 echo "Installing k3s with NODE_IP=${NODE_IP}"
 
