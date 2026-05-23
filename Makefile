@@ -5,12 +5,8 @@ _IP_CMD    := ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print
 NODE_IP    ?= $(shell $(_IP_CMD))
 DOMAIN     ?= example.local
 TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
-# Free IP range on your LAN for LoadBalancer services (62 usable IPs).
-# Carved from the top of a /24: 192.168.1.192–255.
-# Must not overlap your router's DHCP range — adjust start address to fit.
-# /22 is tempting but wrong: it spans 4 class-C subnets and will conflict
-# with your actual LAN. Stay inside a single /24 (use /27–/26).
-NODE_CIDR  ?= 192.168.1.192/26
+# /26 allocates 62 addresses
+NODE_CIDR  ?= $(NODE_IP)/26
 export KUBECONFIG
 
 .PHONY: help \
