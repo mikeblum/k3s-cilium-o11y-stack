@@ -2,7 +2,7 @@
 #
 # Listeners:
 #   http  (:80)  — redirects all traffic to HTTPS
-#   https (:443) — terminates TLS with mkcert wildcard cert for *.roguequery.local
+#   https (:443) — terminates TLS with mkcert wildcard cert for *.example.local
 #
 # The TLS Secret (${TLS_SECRET}) is created by k8s/tls/mkcert-setup.sh.
 # It must exist in envoy-gateway-system before applying this manifest.

@@ -4,7 +4,7 @@ HELM_REPOS := \
 	prometheus-community=https://prometheus-community.github.io/helm-charts
 
 NS         := o11y
-DOMAIN     ?= roguequery.local
+DOMAIN     ?= example.local
 
 .PHONY: repos install uninstall status routes
 

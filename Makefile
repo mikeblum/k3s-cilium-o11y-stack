@@ -1,8 +1,8 @@
 KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
-# Primary outbound IP — follows the routing table so it picks the right NIC.
+# Primary outbound IP — derives the NIC via the routing table.
 # Override with: make k3s-install NODE_IP=192.168.x.y
 NODE_IP    ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
-DOMAIN     ?= roguequery.local
+DOMAIN     ?= example.local
 TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
 export KUBECONFIG
 
@@ -20,7 +20,7 @@ export KUBECONFIG
 # ─── Help ────────────────────────────────────────────────────────────────────
 
 help:
-	@echo "roguequery.local IaC — k3s + Cilium + Envoy Gateway + ClickStack + Tailscale"
+	@echo "example.local IaC — k3s + Cilium + Envoy Gateway + ClickHouse ClickStack + Tailscale"
 	@echo ""
 	@echo "Variables (override on any target):"
 	@echo "  DOMAIN     = $(DOMAIN)"

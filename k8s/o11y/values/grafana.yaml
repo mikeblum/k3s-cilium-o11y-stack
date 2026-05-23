@@ -1,5 +1,5 @@
 # Grafana 13.0.0 — pinned at GrafanaCON2026 release
-# Served at / — host-based routing via Envoy (grafana.roguequery.local)
+# Served at / — host-based routing via Envoy (grafana.example.local)
 # and Tailscale Ingress (grafana.<tailnet>.ts.net).
 # No GF_SERVER_ROOT_URL or GF_SERVER_SERVE_FROM_SUB_PATH needed.
 

@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # k3s install for Cilium CNI + kube-proxy replacement
-# Run as root on the NUC before installing Cilium.
+# !! Run as root before installing Cilium.
 #
-# Disables: flannel, network-policy, kube-proxy, traefik, servicelb
+# Disables k3s defaults: flannel, network-policy, kube-proxy, traefik, servicelb
 # Cilium handles all of the above via eBPF + Envoy.
 
 # Resolve primary outbound IP via routing table — picks the right interface

@@ -1,4 +1,4 @@
-DOMAIN     ?= roguequery.local
+DOMAIN     ?= example.local
 TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
 SECRET_NS  := envoy-gateway-system
 CERT_DIR   := certs

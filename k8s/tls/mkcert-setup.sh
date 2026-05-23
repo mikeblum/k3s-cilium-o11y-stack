@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # k8s/tls/mkcert-setup.sh
 #
-# One-time setup: generates a wildcard TLS certificate for *.roguequery.local
+# One-time setup: generates a wildcard TLS certificate for *.example.local
 # using mkcert and installs it as a Kubernetes Secret for Envoy Gateway.
 #
 # Re-run this script when the certificate expires (~2 years 3 months from issue).
@@ -9,14 +9,14 @@
 #
 # Prerequisites:
 #   - mkcert installed: https://github.com/FiloSottile/mkcert
-#   - kubectl configured and pointing at roguequery.local cluster
+#   - kubectl configured and pointing at example.local cluster
 #
 # Run from repo root:
 #   bash k8s/tls/mkcert-setup.sh
 
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-roguequery.local}"
+DOMAIN="${DOMAIN:-example.local}"
 WILDCARD="*.${DOMAIN}"
 SECRET_NAME="${DOMAIN//./-}-tls"
 SECRET_NS="envoy-gateway-system"

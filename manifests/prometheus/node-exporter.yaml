@@ -1,5 +1,5 @@
 ---
-# External node-exporter endpoint — update IP to match your NUC
+# External node-exporter endpoint — update IP to match $()
 apiVersion: v1
 kind: Service
 metadata:

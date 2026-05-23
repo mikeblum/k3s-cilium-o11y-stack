@@ -1,4 +1,4 @@
-# roguequery.local
+# Local O11y Stack 🔭
 
 k3s + Cilium + Envoy Gateway + ClickHouse o11y stack.
 
@@ -22,8 +22,8 @@ k3s + Cilium + Envoy Gateway + ClickHouse o11y stack.
 
 | URL | Network |
 |---|---|
-| `https://grafana.roguequery.local` | LAN |
-| `https://hubble.roguequery.local` | LAN |
+| `https://grafana.example.local` | LAN |
+| `https://hubble.example.local` | LAN |
 | `https://grafana.<tailnet>.ts.net` | Tailscale |
 | `https://hubble.<tailnet>.ts.net` | Tailscale |
 
@@ -57,12 +57,12 @@ kubectl exec -n kube-system ds/cilium -- curl -s http://localhost:9962/metrics |
 make tls-install
 ```
 
-Generates a `*.roguequery.local` wildcard cert with mkcert and stores it as a Secret in `envoy-gateway-system`. See `k8s/tls/README.md` for how to trust the CA on other devices.
+Generates a `*.example.local` wildcard cert with mkcert and stores it as a Secret in `envoy-gateway-system`. See `k8s/tls/README.md` for how to trust the CA on other devices.
 
 Add to `/etc/hosts` on your desktop:
 
 ```
-<host-ip>  roguequery.local grafana.roguequery.local hubble.roguequery.local
+<host-ip>  example.local grafana.example.local hubble.example.local
 ```
 
 ### 3. Envoy Gateway
@@ -127,19 +127,19 @@ kubectl annotate namespace tailscale io.cilium/no-track-port="0"
 ## Verify
 
 ```bash
-curl -I https://grafana.roguequery.local
+curl -I https://grafana.example.local
 
 kubectl exec -n o11y deploy/ch-writer -- \
   curl -s "http://clickhouse.o11y.svc.cluster.local:8123/?query=SELECT+count()+FROM+otel.otel_logs"
 ```
 
-Alloy debug UI: `https://roguequery.local/alloy`
+Alloy debug UI: `https://example.local/alloy`
 
 ---
 
 ## Adding a service
 
-The wildcard cert covers any `*.roguequery.local` subdomain — no cert changes needed.
+The wildcard cert covers any `*.example.local` subdomain — no cert changes needed.
 
 **1.** Set OTLP env vars in your pod spec:
 

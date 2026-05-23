@@ -1,4 +1,4 @@
-# Cilium Helm values — k3s single-node NUC
+# Cilium Helm values — k3s single-node setup
 # Requires: --set k8sServiceHost=<NODE_IP> at install time
 #           (see infra/cilium/install.sh)
 
