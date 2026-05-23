@@ -4,9 +4,12 @@ KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
 NODE_IP    ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
 DOMAIN     ?= example.local
 TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
-# Free IP range on your LAN for LoadBalancer services.
-# Sits above most home-router DHCP ranges — adjust to fit your subnet.
-NODE_CIDR  ?= 192.168.1.240/29
+# Free IP range on your LAN for LoadBalancer services (62 usable IPs).
+# Carved from the top of a /24: 192.168.1.192–255.
+# Must not overlap your router's DHCP range — adjust start address to fit.
+# /22 is tempting but wrong: it spans 4 class-C subnets and will conflict
+# with your actual LAN. Stay inside a single /24 (use /27–/26).
+NODE_CIDR  ?= 192.168.1.192/26
 export KUBECONFIG
 
 .PHONY: help \
@@ -28,7 +31,7 @@ help:
 	@echo "  NODE_IP    = $(NODE_IP)"
 	@echo "  NODE_CIDR  = $(NODE_CIDR)   (LB IP pool — free range on your LAN)"
 	@echo "  Example:   make tls-install DOMAIN=home.example.com"
-	@echo "  Example:   make cilium-lb   NODE_CIDR=192.168.1.240/29"
+	@echo "  Example:   make cilium-lb   NODE_CIDR=192.168.1.192/26"
 	@echo ""
 	@echo "Bootstrap (run in order on the host):"
 	@echo "  make k3s-install          Install k3s"
