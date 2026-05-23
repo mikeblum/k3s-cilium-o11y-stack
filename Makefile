@@ -1,39 +1,40 @@
 KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
-# Primary outbound IP — follows the routing table so it picks the right NIC
-# automatically. Override with: make k3s-install NODE_IP=192.168.x.y
+# Primary outbound IP — follows the routing table so it picks the right NIC.
+# Override with: make k3s-install NODE_IP=192.168.x.y
 NODE_IP ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
 export KUBECONFIG
 
 .PHONY: help \
         k3s-install k3s-uninstall \
-        cilium-install cilium-upgrade cilium-status \
-        cilium-apply cilium-lb \
-        clickstack-apply clickstack-delete \
-        alloy-apply grafana-apply clickhouse-apply \
+        cilium-install cilium-upgrade cilium-status cilium-lb \
+        tls-install tls-check-expiry \
+        gateway-apply \
+        o11y-install o11y-uninstall o11y-status \
+        tailscale-install tailscale-status \
         node-exporter-apply \
-        apply-all delete-all \
         hubble-status hubble-ui \
         contour-export contour-apply contour-clean
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
 help:
-	@echo "roguequery.local IaC — k3s + Cilium + ClickStack"
+	@echo "roguequery.local IaC — k3s + Cilium + Envoy Gateway + ClickStack + Tailscale"
 	@echo ""
-	@echo "Bootstrap (run in order):"
-	@echo "  make k3s-install        Install k3s (run on NUC as root)"
-	@echo "  make cilium-install     Install Cilium via Helm"
-	@echo "  make cilium-lb          Apply LB IP pool + L2 policy"
-	@echo "  make clickstack-apply   Deploy ClickHouse + Alloy + Grafana"
+	@echo "Bootstrap (run in order on the NUC):"
+	@echo "  make k3s-install          Install k3s"
+	@echo "  make cilium-install       Install Cilium via Helm"
+	@echo "  make cilium-lb            Apply LB IP pool + L2 policy"
+	@echo "  make tls-install          Generate mkcert wildcard cert + k8s Secret"
+	@echo "  make gateway-apply        Apply Envoy Gateway + cluster-ingress"
+	@echo "  make o11y-install         Install full o11y stack (Helm + manifests)"
+	@echo "  make tailscale-install    Install Tailscale operator + ingress resources"
 	@echo ""
 	@echo "Day-2:"
-	@echo "  make cilium-upgrade     Upgrade Cilium in-place"
-	@echo "  make cilium-status      Show Cilium + Hubble health"
-	@echo "  make hubble-status      Run hubble observe (requires hubble CLI)"
-	@echo "  make hubble-ui          Port-forward Hubble UI to localhost:12000"
-	@echo ""
-	@echo "Teardown:"
-	@echo "  make k3s-uninstall      Remove k3s from node"
+	@echo "  make cilium-status        Cilium + Hubble pod status"
+	@echo "  make hubble-ui            Port-forward Hubble UI → localhost:12000"
+	@echo "  make o11y-status          Pod status in observability namespace"
+	@echo "  make tls-check-expiry     Print cert expiry date"
+	@echo "  make tailscale-status     Tailscale operator + proxy status"
 
 # ─── k3s ─────────────────────────────────────────────────────────────────────
 
@@ -51,11 +52,8 @@ cilium-install:
 cilium-upgrade:
 	@NODE_IP=$(NODE_IP) CILIUM_VERSION=$(CILIUM_VERSION) bash infra/cilium/install.sh
 
-cilium-apply:
+cilium-lb:
 	@kubectl apply -f manifests/cilium/
-
-cilium-lb: cilium-apply
-	@echo "LB pool and L2 policy applied."
 
 cilium-status:
 	@kubectl -n kube-system get pods -l k8s-app=cilium -o wide
@@ -64,34 +62,42 @@ cilium-status:
 	@echo ""
 	@kubectl -n kube-system get pods -l app.kubernetes.io/name=hubble-ui -o wide
 
-# ─── ClickStack ───────────────────────────────────────────────────────────────
+# ─── TLS ─────────────────────────────────────────────────────────────────────
 
-clickstack-apply: clickhouse-apply alloy-apply grafana-apply node-exporter-apply
-	@echo "ClickStack deployed to observability namespace."
+tls-install:
+	@$(MAKE) -C k8s/tls install
 
-clickhouse-apply:
-	@kubectl apply -f manifests/clickhouse/
+tls-check-expiry:
+	@$(MAKE) -C k8s/tls check-expiry
 
-alloy-apply:
-	@kubectl apply -f manifests/alloy/
+# ─── Envoy Gateway ───────────────────────────────────────────────────────────
 
-grafana-apply:
-	@kubectl apply -f manifests/grafana/
+gateway-apply:
+	@kubectl apply -f k8s/envoy-gateway/gateway.yaml
+
+# ─── Observability stack ──────────────────────────────────────────────────────
+
+o11y-install:
+	@$(MAKE) -C k8s/o11y install
+
+o11y-uninstall:
+	@$(MAKE) -C k8s/o11y uninstall
+
+o11y-status:
+	@$(MAKE) -C k8s/o11y status
+
+# ─── Tailscale ───────────────────────────────────────────────────────────────
+
+tailscale-install:
+	@$(MAKE) -C k8s/tailscale install
+
+tailscale-status:
+	@$(MAKE) -C k8s/tailscale status
+
+# ─── Misc helpers ─────────────────────────────────────────────────────────────
 
 node-exporter-apply:
 	@kubectl apply -f manifests/prometheus/
-
-clickstack-delete:
-	@kubectl delete -f manifests/grafana/ --ignore-not-found
-	@kubectl delete -f manifests/alloy/ --ignore-not-found
-	@kubectl delete -f manifests/clickhouse/ --ignore-not-found
-	@kubectl delete namespace observability --ignore-not-found
-
-# ─── Full stack ───────────────────────────────────────────────────────────────
-
-apply-all: cilium-lb clickstack-apply
-
-# ─── Observability helpers ────────────────────────────────────────────────────
 
 hubble-status:
 	@hubble observe --last 50
@@ -102,8 +108,8 @@ hubble-ui:
 
 # ─── Contour (legacy — pre-Cilium) ───────────────────────────────────────────
 
-CONTOUR_NS   := projectcontour
-CONTOUR_OUT  := manifests/contour
+CONTOUR_NS  := projectcontour
+CONTOUR_OUT := manifests/contour
 
 contour-export: contour-clean
 	@mkdir -p $(CONTOUR_OUT)

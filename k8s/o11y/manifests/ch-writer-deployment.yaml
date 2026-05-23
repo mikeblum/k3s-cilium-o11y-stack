@@ -1,0 +1,97 @@
+# ch-writer: otelcol-contrib acting as a dumb ClickHouse sink.
+#
+# The only reason this exists is that otelcol.exporter.clickhouse is not yet
+# a native Alloy component (https://github.com/grafana/alloy/issues/3492).
+#
+# When that issue lands:
+#   1. Delete this file.
+#   2. Add the clickhouse exporter block to alloy-configmap.yaml.
+#   3. Update otelcol.exporter.otlp "ch_writer" to otelcol.exporter.clickhouse "default".
+#   4. Re-run: make install
+#
+# otelcol-contrib pinned to 0.126.0 — bump alongside Alloy version reviews.
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ch-writer
+  namespace: observability
+  labels:
+    app: ch-writer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ch-writer
+  template:
+    metadata:
+      labels:
+        app: ch-writer
+    spec:
+      containers:
+        - name: ch-writer
+          image: otel/opentelemetry-collector-contrib:0.126.0
+          args: ["--config=/etc/otelcol/config.yaml"]
+          ports:
+            - containerPort: 4317
+              name: otlp-grpc
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+              cpu: 250m
+      volumes:
+        - name: config
+          configMap:
+            name: ch-writer-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ch-writer-config
+  namespace: observability
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+
+    exporters:
+      clickhouse:
+        endpoint: tcp://clickhouse.observability.svc.cluster.local:9000
+        database: otel
+        logs_table_name:    otel_logs
+        traces_table_name:  otel_traces
+        metrics_table_name: otel_metrics
+        ttl:          720h    # 30 days — adjust per signal if needed
+        compress:     lz4
+        async_insert: true
+
+    service:
+      pipelines:
+        traces:   { receivers: [otlp], exporters: [clickhouse] }
+        logs:     { receivers: [otlp], exporters: [clickhouse] }
+        metrics:  { receivers: [otlp], exporters: [clickhouse] }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ch-writer
+  namespace: observability
+spec:
+  selector:
+    app: ch-writer
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317

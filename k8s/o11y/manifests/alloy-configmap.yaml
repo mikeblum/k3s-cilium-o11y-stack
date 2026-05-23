@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: observability
+data:
+  config.alloy: |
+    // ── OTLP ingestion from in-cluster services ───────────────────────────────
+    otelcol.receiver.otlp "default" {
+      grpc { endpoint = "0.0.0.0:4317" }
+      http { endpoint = "0.0.0.0:4318" }
+      output {
+        metrics = [otelcol.processor.k8sattributes.default.input]
+        logs    = [otelcol.processor.k8sattributes.default.input]
+        traces  = [otelcol.processor.k8sattributes.default.input]
+      }
+    }
+
+    // ── Kubernetes attribute enrichment ───────────────────────────────────────
+    // Requires ClusterRole with get/list/watch on pods, namespaces, nodes.
+    otelcol.processor.k8sattributes "default" {
+      extract {
+        metadata = [
+          "k8s.pod.name",
+          "k8s.namespace.name",
+          "k8s.node.name",
+          "k8s.deployment.name",
+        ]
+        labels = [{ key = "app", tag_name = "service.name" }]
+      }
+      output {
+        metrics = [otelcol.processor.batch.default.input]
+        logs    = [otelcol.processor.batch.default.input]
+        traces  = [otelcol.processor.batch.default.input]
+      }
+    }
+
+    // ── Cilium agent scraping (DaemonSet reaches node-local :9962) ────────────
+    prometheus.scrape "cilium_agent" {
+      targets         = [{ __address__ = "localhost:9962" }]
+      job_name        = "cilium-agent"
+      scrape_interval = "15s"
+      forward_to      = [prometheus.remote_write.local.receiver]
+    }
+
+    // ── Hubble scraping (node-local :9965) ────────────────────────────────────
+    prometheus.scrape "hubble" {
+      targets         = [{ __address__ = "localhost:9965" }]
+      job_name        = "hubble"
+      scrape_interval = "15s"
+      forward_to      = [prometheus.remote_write.local.receiver]
+    }
+
+    // ── Go service /metrics scraping ──────────────────────────────────────────
+    // Add targets as services are deployed.
+    // Example: { __address__ = "my-service.default.svc.cluster.local:2112" }
+    prometheus.scrape "go_services" {
+      targets         = []
+      scrape_interval = "15s"
+      forward_to      = [prometheus.remote_write.local.receiver]
+    }
+
+    // ── Prometheus remote write (Cilium + Hubble + scraped metrics) ───────────
+    // cilium-operator is scraped via ServiceMonitor in cilium-servicemonitor.yaml
+    prometheus.remote_write "local" {
+      endpoint {
+        url = "http://prometheus-server.observability.svc.cluster.local/api/v1/write"
+      }
+    }
+
+    // ── Batch processor ───────────────────────────────────────────────────────
+    otelcol.processor.batch "default" {
+      timeout = "5s"
+      output {
+        metrics = [otelcol.exporter.otlp.ch_writer.input]
+        logs    = [otelcol.exporter.otlp.ch_writer.input]
+        traces  = [otelcol.exporter.otlp.ch_writer.input]
+      }
+    }
+
+    // ── Forward OTLP signals to ch-writer ─────────────────────────────────────
+    // ch-writer is the otelcol-contrib sidecar that writes to ClickHouse.
+    // TODO: when otelcol.exporter.clickhouse lands in Alloy (issue #3492),
+    // replace this block with a native clickhouse exporter and delete ch-writer.
+    otelcol.exporter.otlp "ch_writer" {
+      client {
+        endpoint = "ch-writer.observability.svc.cluster.local:4317"
+        tls { insecure = true }
+      }
+    }

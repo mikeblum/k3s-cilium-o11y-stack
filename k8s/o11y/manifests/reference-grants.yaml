@@ -1,0 +1,38 @@
+# Gateway API ReferenceGrants — authorise cluster-ingress (in envoy-gateway-system)
+# to attach HTTPRoutes defined in other namespaces.
+#
+# Same-namespace refs need no grant:
+#   observability HTTPRoute  → observability Service  ✓ (no grant needed)
+#   kube-system   HTTPRoute  → kube-system   Service  ✓ (no grant needed)
+#
+# Cross-namespace attachment (Gateway → Route namespace) does need grants:
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: gateway-to-observability
+  namespace: observability
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      namespace: envoy-gateway-system
+  to:
+    - group: ""
+      kind: Service
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: gateway-to-kube-system
+  namespace: kube-system
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      namespace: envoy-gateway-system
+  to:
+    - group: ""
+      kind: Service

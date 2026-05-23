@@ -1,0 +1,109 @@
+# Envoy Gateway HTTPRoutes for the o11y stack.
+#
+# All routes attach to the `https` listener (port 443, mkcert TLS).
+# A separate HTTPRoute on the `http` listener redirects HTTP → HTTPS cluster-wide.
+#
+# LAN access requires /etc/hosts on your desktop:
+#   192.168.86.101  grafana.roguequery.local
+#   192.168.86.101  hubble.roguequery.local
+#
+# Tailscale access (no hosts file, Let's Encrypt TLS, works anywhere):
+#   https://grafana.<tailnet>.ts.net
+#   https://hubble.<tailnet>.ts.net
+
+---
+# HTTP → HTTPS redirect for all *.roguequery.local traffic
+# Attaches to the http (port 80) listener on cluster-ingress.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: http-to-https-redirect
+  namespace: envoy-gateway-system
+spec:
+  parentRefs:
+    - name: cluster-ingress
+      namespace: envoy-gateway-system
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+
+---
+# Grafana — host-based, HTTPS, served at /
+# No GF_SERVER_ROOT_URL or GF_SERVER_SERVE_FROM_SUB_PATH needed.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  parentRefs:
+    - name: cluster-ingress
+      namespace: envoy-gateway-system
+      sectionName: https              # ← https listener, not http
+  hostnames:
+    - grafana.roguequery.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: grafana
+          port: 3000
+
+---
+# Hubble UI — host-based, HTTPS, served at /
+# SPA built with PUBLIC_URL=/ — host-based routing avoids the subpath problem.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hubble-ui
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: cluster-ingress
+      namespace: envoy-gateway-system
+      sectionName: https
+  hostnames:
+    - hubble.roguequery.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: hubble-ui
+          port: 80
+
+---
+# Alloy debug UI — HTTPS, path-based, internal tooling only.
+# Not exposed via Tailscale.
+# Access: https://roguequery.local/alloy (or kubectl port-forward for zero-config)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: alloy-debug
+  namespace: observability
+spec:
+  parentRefs:
+    - name: cluster-ingress
+      namespace: envoy-gateway-system
+      sectionName: https
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /alloy
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: alloy
+          port: 12345
