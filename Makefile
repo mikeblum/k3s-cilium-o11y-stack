@@ -13,15 +13,12 @@ export KUBECONFIG
         tls-install tls-check-expiry \
         gateway-apply \
         o11y-install o11y-uninstall o11y-status \
-        tailscale-install tailscale-status \
-        node-exporter-apply \
-        hubble-status hubble-ui \
-        contour-export contour-apply contour-clean
+        tailscale-install tailscale-status
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
 help:
-	@echo "example.local IaC — k3s + Cilium + Envoy Gateway + ClickHouse ClickStack + Tailscale"
+	@echo "example.local IaC: k3s + Cilium + Envoy Gateway + ClickHouse ClickStack + Tailscale"
 	@echo ""
 	@echo "Variables (override on any target):"
 	@echo "  DOMAIN     = $(DOMAIN)"
@@ -37,12 +34,6 @@ help:
 	@echo "  make o11y-install         Install full o11y stack (Helm + manifests)"
 	@echo "  make tailscale-install    Install Tailscale operator + ingress resources"
 	@echo ""
-	@echo "Day-2:"
-	@echo "  make cilium-status        Cilium + Hubble pod status"
-	@echo "  make hubble-ui            Port-forward Hubble UI → localhost:12000"
-	@echo "  make o11y-status          Pod status in observability namespace"
-	@echo "  make tls-check-expiry     Print cert expiry date"
-	@echo "  make tailscale-status     Tailscale operator + proxy status"
 
 	# ─── ip ─────────────────────────────────────────────────────────────────────
 ip:
@@ -88,7 +79,7 @@ gateway-apply:
 	@DOMAIN=$(DOMAIN) TLS_SECRET=$(TLS_SECRET) envsubst '$${TLS_SECRET}' \
 	  < k8s/envoy-gateway/gateway.yaml | kubectl apply -f -
 
-# ─── Observability stack ──────────────────────────────────────────────────────
+# ─── O11y stack ──────────────────────────────────────────────────────
 
 o11y-install:
 	@$(MAKE) -C k8s/o11y install DOMAIN=$(DOMAIN)
@@ -106,36 +97,3 @@ tailscale-install:
 
 tailscale-status:
 	@$(MAKE) -C k8s/tailscale status
-
-# ─── Misc helpers ─────────────────────────────────────────────────────────────
-
-node-exporter-apply:
-	@kubectl apply -f manifests/prometheus/
-
-hubble-status:
-	@hubble observe --last 50
-
-hubble-ui:
-	@echo "Hubble UI → http://localhost:12000"
-	@kubectl -n kube-system port-forward svc/hubble-ui 12000:80
-
-# ─── Contour (legacy — pre-Cilium) ───────────────────────────────────────────
-
-CONTOUR_NS  := projectcontour
-CONTOUR_OUT := manifests/contour
-
-contour-export: contour-clean
-	@mkdir -p $(CONTOUR_OUT)
-	@kubectl get namespace $(CONTOUR_NS) -o yaml | kubectl apply --dry-run=client -o yaml -f - > $(CONTOUR_OUT)/00-namespace.yaml 2>/dev/null || echo "$(CONTOUR_NS): ⚠ namespace not found"
-	@kubectl get crd -l app.kubernetes.io/name=contour -o yaml | kubectl apply --dry-run=client -o yaml -f - > $(CONTOUR_OUT)/01-crds.yaml 2>/dev/null || echo "$(CONTOUR_NS): ⚠ crds not found"
-	@kubectl get clusterrole,clusterrolebinding -l app.kubernetes.io/name=contour -o yaml | kubectl apply --dry-run=client -o yaml -f - > $(CONTOUR_OUT)/02-rbac.yaml 2>/dev/null || echo "$(CONTOUR_NS): ⚠ rbac not found"
-	@kubectl get serviceaccount,configmap,secret -n $(CONTOUR_NS) -l app.kubernetes.io/name=contour -o yaml | kubectl apply --dry-run=client -o yaml -f - > $(CONTOUR_OUT)/03-config.yaml 2>/dev/null || echo "$(CONTOUR_NS): ⚠ config not found"
-	@kubectl get service -n $(CONTOUR_NS) -o yaml | kubectl apply --dry-run=client -o yaml -f - > $(CONTOUR_OUT)/04-services.yaml 2>/dev/null || echo "$(CONTOUR_NS): ⚠ services not found"
-	@kubectl get deployment -n $(CONTOUR_NS) -o yaml | kubectl apply --dry-run=client -o yaml -f - > $(CONTOUR_OUT)/05-deployment.yaml 2>/dev/null || echo "$(CONTOUR_NS): ⚠ deployment not found"
-	@kubectl get daemonset -n $(CONTOUR_NS) -o yaml | kubectl apply --dry-run=client -o yaml -f - > $(CONTOUR_OUT)/06-daemonset.yaml 2>/dev/null || echo "$(CONTOUR_NS): ⚠ daemonset not found"
-
-contour-apply:
-	@kubectl apply -f $(CONTOUR_OUT)/
-
-contour-clean:
-	@rm -f $(CONTOUR_OUT)/*.yaml
