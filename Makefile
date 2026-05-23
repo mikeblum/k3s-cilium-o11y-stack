@@ -1,7 +1,8 @@
 KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
 # Primary outbound IP — derives the NIC via the routing table.
 # Override with: make k3s-install NODE_IP=192.168.x.y
-NODE_IP    ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
+_IP_CMD    := ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}'
+NODE_IP    ?= $(shell $(_IP_CMD))
 DOMAIN     ?= example.local
 TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
 # Free IP range on your LAN for LoadBalancer services (62 usable IPs).
@@ -43,9 +44,9 @@ help:
 	@echo "  make tailscale-install    Install Tailscale operator + ingress resources"
 	@echo ""
 
-	# ─── ip ─────────────────────────────────────────────────────────────────────
+# ─── ip ─────────────────────────────────────────────────────────────────────
 ip:
-	@ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}'
+	@$(_IP_CMD)
 
 # ─── k3s ─────────────────────────────────────────────────────────────────────
 
