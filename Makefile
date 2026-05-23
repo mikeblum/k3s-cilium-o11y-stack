@@ -1,12 +1,14 @@
 KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
 # Primary outbound IP — derives the NIC via the routing table.
 # Override with: make k3s-install NODE_IP=192.168.x.y
-_IP_CMD    := ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}'
-NODE_IP    ?= $(shell $(_IP_CMD))
-DOMAIN     ?= example.local
-TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
+_IP_CMD    = ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}'
+NODE_IP   ?= $(shell $(_IP_CMD))
 # /26 allocates 62 addresses
 NODE_CIDR  ?= $(NODE_IP)/26
+
+DOMAIN     ?= example.local
+TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
+
 export KUBECONFIG
 
 .PHONY: help \
