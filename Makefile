@@ -4,6 +4,9 @@ KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
 NODE_IP    ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
 DOMAIN     ?= example.local
 TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
+# Free IP range on your LAN for LoadBalancer services.
+# Sits above most home-router DHCP ranges — adjust to fit your subnet.
+NODE_CIDR  ?= 192.168.1.240/29
 export KUBECONFIG
 
 .PHONY: help \
@@ -23,7 +26,9 @@ help:
 	@echo "Variables (override on any target):"
 	@echo "  DOMAIN     = $(DOMAIN)"
 	@echo "  NODE_IP    = $(NODE_IP)"
+	@echo "  NODE_CIDR  = $(NODE_CIDR)   (LB IP pool — free range on your LAN)"
 	@echo "  Example:   make tls-install DOMAIN=home.example.com"
+	@echo "  Example:   make cilium-lb   NODE_CIDR=192.168.1.240/29"
 	@echo ""
 	@echo "Bootstrap (run in order on the host):"
 	@echo "  make k3s-install          Install k3s"
@@ -56,7 +61,9 @@ cilium-upgrade:
 	@NODE_IP=$(NODE_IP) CILIUM_VERSION=$(CILIUM_VERSION) bash infra/cilium/install.sh
 
 cilium-lb:
-	@kubectl apply -f manifests/cilium/
+	@NODE_CIDR=$(NODE_CIDR) envsubst '$${NODE_CIDR}' \
+	  < manifests/cilium/lb-pool.yaml | kubectl apply -f -
+	@kubectl apply -f manifests/cilium/l2-policy.yaml
 
 cilium-status:
 	@kubectl -n kube-system get pods -l k8s-app=cilium -o wide
