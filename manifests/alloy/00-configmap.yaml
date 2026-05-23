@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: clickstack
+data:
+  config.alloy: |
+    // ─── OTLP ingress ────────────────────────────────────────────────────────
+    otelcol.receiver.otlp "default" {
+      grpc { endpoint = "0.0.0.0:4317" }
+      http { endpoint = "0.0.0.0:4318" }
+      output {
+        metrics = [otelcol.processor.batch.default.input]
+        logs    = [otelcol.processor.batch.default.input]
+        traces  = [otelcol.processor.batch.default.input]
+      }
+    }
+
+    // ─── Prometheus scraping → OTel pipeline ─────────────────────────────────
+    prometheus.scrape "cilium" {
+      targets = [
+        {"__address__" = "cilium-agent.kube-system.svc.cluster.local:9962",    "job" = "cilium-agent"},
+        {"__address__" = "hubble-relay.kube-system.svc.cluster.local:9965",    "job" = "hubble-relay"},
+        {"__address__" = "cilium-operator.kube-system.svc.cluster.local:9963", "job" = "cilium-operator"},
+        {"__address__" = "node-exporter.observability.svc.cluster.local:9100", "job" = "node-exporter"},
+      ]
+      scrape_interval = "30s"
+      forward_to = [otelcol.receiver.prometheus.default.receiver]
+    }
+
+    // Bridge: Prometheus → OTel metrics format
+    otelcol.receiver.prometheus "default" {
+      output {
+        metrics = [otelcol.processor.batch.default.input]
+      }
+    }
+
+    // ─── Batch processor ──────────────────────────────────────────────────────
+    otelcol.processor.batch "default" {
+      timeout         = "5s"
+      send_batch_size = 1000
+      output {
+        metrics = [otelcol.exporter.clickhouse.default.input]
+        logs    = [otelcol.exporter.clickhouse.default.input]
+        traces  = [otelcol.exporter.clickhouse.default.input]
+      }
+    }
+
+    // ─── ClickHouse exporter ──────────────────────────────────────────────────
+    otelcol.exporter.clickhouse "default" {
+      endpoint           = "tcp://clickhouse.observability.svc.cluster.local:9000"
+      database           = "otel"
+      ttl                = "72h"
+      create_schema      = true
+      logs_table_name    = "otel_logs"
+      traces_table_name  = "otel_traces"
+      metrics_table_name = "otel_metrics"
+
+      retry_on_failure {
+        enabled          = true
+        initial_interval = "5s"
+        max_interval     = "30s"
+      }
+    }

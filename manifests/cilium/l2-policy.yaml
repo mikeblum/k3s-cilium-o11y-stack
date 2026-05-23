@@ -1,0 +1,16 @@
+# Announce LoadBalancer IPs via ARP/NDP on the local LAN
+apiVersion: "cilium.io/v2alpha1"
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: default-l2-policy
+spec:
+  # Announce IPs for all LoadBalancer services
+  serviceSelector:
+    matchLabels: {}
+  nodeSelector:
+    matchLabels: {}
+  interfaces:
+    - "^eth[0-9]+"
+    - "^en[a-z0-9]+"
+  externalIPs: false
+  loadBalancerIPs: true

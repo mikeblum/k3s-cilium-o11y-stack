@@ -1,0 +1,32 @@
+---
+# External node-exporter endpoint — update IP to match your NUC
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: observability
+  labels:
+    app: node-exporter
+spec:
+  ports:
+    - name: metrics
+      port: 9100
+      protocol: TCP
+      targetPort: 9100
+  clusterIP: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: node-exporter
+  namespace: observability
+  labels:
+    app: node-exporter
+subsets:
+  - addresses:
+      - ip: 192.168.86.123   # <-- update to your NUC IP
+    ports:
+      - name: metrics
+        port: 9100
+        protocol: TCP
