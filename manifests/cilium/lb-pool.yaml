@@ -1,9 +1,7 @@
-# CiliumLoadBalancerIPPool — edit the CIDR to match a free range on your LAN.
-# Example: if your external IPv4 is 192.168.1.10, use something like 192.168.1.200/29
 apiVersion: "cilium.io/v2alpha1"
 kind: CiliumLoadBalancerIPPool
 metadata:
   name: lan-pool
 spec:
   blocks:
-    - cidr: "192.168.1.200/29"   # <-- customize to your LAN
+    - cidr: ${NODE_CIDR}

@@ -7,9 +7,7 @@ set -euo pipefail
 # Disables k3s defaults: flannel, network-policy, kube-proxy, traefik, servicelb
 # Cilium handles all of the above via eBPF + Envoy.
 
-# Resolve primary outbound IP via routing table — picks the right interface
-# even on machines with multiple NICs or bridge adapters.
-NODE_IP="${NODE_IP:-$(ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}')}"
+NODE_IP="${NODE_IP:?NODE_IP not set. run make ip}"
 
 echo "Installing k3s with NODE_IP=${NODE_IP}"
 

@@ -7,6 +7,7 @@ TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
 export KUBECONFIG
 
 .PHONY: help \
+		ip \
         k3s-install k3s-uninstall \
         cilium-install cilium-upgrade cilium-status cilium-lb \
         tls-install tls-check-expiry \
@@ -42,6 +43,10 @@ help:
 	@echo "  make o11y-status          Pod status in observability namespace"
 	@echo "  make tls-check-expiry     Print cert expiry date"
 	@echo "  make tailscale-status     Tailscale operator + proxy status"
+
+	# ─── ip ─────────────────────────────────────────────────────────────────────
+ip:
+	@ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}'
 
 # ─── k3s ─────────────────────────────────────────────────────────────────────
 

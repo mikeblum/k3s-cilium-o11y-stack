@@ -2,9 +2,7 @@
 set -euo pipefail
 
 CILIUM_VERSION="${CILIUM_VERSION:-1.17.3}"
-# Resolve primary outbound IP via routing table — picks the right interface
-# even on machines with multiple NICs or bridge adapters.
-NODE_IP="${NODE_IP:-$(ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}')}"
+NODE_IP="${NODE_IP:?NODE_IP not set. run make ip}"
 KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
 export KUBECONFIG
