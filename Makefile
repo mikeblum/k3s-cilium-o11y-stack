@@ -1,7 +1,9 @@
 KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
 # Primary outbound IP — follows the routing table so it picks the right NIC.
 # Override with: make k3s-install NODE_IP=192.168.x.y
-NODE_IP ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
+NODE_IP    ?= $(shell ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}')
+DOMAIN     ?= roguequery.local
+TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
 export KUBECONFIG
 
 .PHONY: help \
@@ -20,7 +22,12 @@ export KUBECONFIG
 help:
 	@echo "roguequery.local IaC — k3s + Cilium + Envoy Gateway + ClickStack + Tailscale"
 	@echo ""
-	@echo "Bootstrap (run in order on the NUC):"
+	@echo "Variables (override on any target):"
+	@echo "  DOMAIN     = $(DOMAIN)"
+	@echo "  NODE_IP    = $(NODE_IP)"
+	@echo "  Example:   make tls-install DOMAIN=home.example.com"
+	@echo ""
+	@echo "Bootstrap (run in order on the host):"
 	@echo "  make k3s-install          Install k3s"
 	@echo "  make cilium-install       Install Cilium via Helm"
 	@echo "  make cilium-lb            Apply LB IP pool + L2 policy"
@@ -65,20 +72,21 @@ cilium-status:
 # ─── TLS ─────────────────────────────────────────────────────────────────────
 
 tls-install:
-	@$(MAKE) -C k8s/tls install
+	@$(MAKE) -C k8s/tls install DOMAIN=$(DOMAIN)
 
 tls-check-expiry:
-	@$(MAKE) -C k8s/tls check-expiry
+	@$(MAKE) -C k8s/tls check-expiry DOMAIN=$(DOMAIN)
 
 # ─── Envoy Gateway ───────────────────────────────────────────────────────────
 
 gateway-apply:
-	@kubectl apply -f k8s/envoy-gateway/gateway.yaml
+	@DOMAIN=$(DOMAIN) TLS_SECRET=$(TLS_SECRET) envsubst '$${TLS_SECRET}' \
+	  < k8s/envoy-gateway/gateway.yaml | kubectl apply -f -
 
 # ─── Observability stack ──────────────────────────────────────────────────────
 
 o11y-install:
-	@$(MAKE) -C k8s/o11y install
+	@$(MAKE) -C k8s/o11y install DOMAIN=$(DOMAIN)
 
 o11y-uninstall:
 	@$(MAKE) -C k8s/o11y uninstall

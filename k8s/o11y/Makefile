@@ -3,7 +3,8 @@ HELM_REPOS := \
 	grafana=https://grafana.github.io/helm-charts \
 	prometheus-community=https://prometheus-community.github.io/helm-charts
 
-NS := o11y
+NS         := o11y
+DOMAIN     ?= roguequery.local
 
 .PHONY: repos install uninstall status routes
 
@@ -23,7 +24,7 @@ install: repos
 	helm upgrade --install grafana     grafana/grafana                  -n $(NS) -f values/grafana.yaml
 	kubectl apply -f manifests/grafana-datasources-configmap.yaml
 	kubectl apply -f manifests/reference-grants.yaml
-	kubectl apply -f manifests/gateway-routes.yaml
+	DOMAIN=$(DOMAIN) envsubst '$${DOMAIN}' < manifests/gateway-routes.yaml | kubectl apply -f -
 
 uninstall:
 	helm uninstall grafana prometheus alloy clickhouse -n $(NS) || true

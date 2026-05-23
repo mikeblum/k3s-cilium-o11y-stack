@@ -16,9 +16,9 @@
 
 set -euo pipefail
 
-DOMAIN="roguequery.local"
-WILDCARD="*.roguequery.local"
-SECRET_NAME="roguequery-local-tls"
+DOMAIN="${DOMAIN:-roguequery.local}"
+WILDCARD="*.${DOMAIN}"
+SECRET_NAME="${DOMAIN//./-}-tls"
 SECRET_NS="envoy-gateway-system"
 CERT_DIR="$(dirname "$0")/certs"   # k8s/tls/certs/ — gitignored
 
@@ -82,8 +82,8 @@ info ""
 info "Next steps:"
 info "  1. Apply the updated Gateway:    kubectl apply -f k8s/envoy-gateway/gateway.yaml"
 info "  2. Apply updated routes:         kubectl apply -f k8s/o11y/manifests/gateway-routes.yaml"
-info "  3. Verify HTTPS:                 curl -I https://grafana.roguequery.local"
+info "  3. Verify HTTPS:                 curl -I https://grafana.${DOMAIN}"
 info ""
-warn "Remember: distribute the CA cert to other devices that need to trust roguequery.local:"
+warn "Remember: distribute the CA cert to other devices that need to trust ${DOMAIN}:"
 warn "  CA cert: $CAROOT/rootCA.pem"
 warn "  See k8s/tls/README.md for platform-specific install instructions."

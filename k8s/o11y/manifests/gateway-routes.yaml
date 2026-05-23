@@ -4,15 +4,15 @@
 # A separate HTTPRoute on the `http` listener redirects HTTP → HTTPS cluster-wide.
 #
 # LAN access requires /etc/hosts on your desktop:
-#   192.168.86.101  grafana.roguequery.local
-#   192.168.86.101  hubble.roguequery.local
+#   <host-ip>  grafana.${DOMAIN}
+#   <host-ip>  hubble.${DOMAIN}
 #
 # Tailscale access (no hosts file, Let's Encrypt TLS, works anywhere):
 #   https://grafana.<tailnet>.ts.net
 #   https://hubble.<tailnet>.ts.net
 
 ---
-# HTTP → HTTPS redirect for all *.roguequery.local traffic
+# HTTP → HTTPS redirect for all *.${DOMAIN} traffic
 # Attaches to the http (port 80) listener on cluster-ingress.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -45,7 +45,7 @@ spec:
       namespace: envoy-gateway-system
       sectionName: https              # ← https listener, not http
   hostnames:
-    - grafana.roguequery.local
+    - grafana.${DOMAIN}
   rules:
     - matches:
         - path:
@@ -69,7 +69,7 @@ spec:
       namespace: envoy-gateway-system
       sectionName: https
   hostnames:
-    - hubble.roguequery.local
+    - hubble.${DOMAIN}
   rules:
     - matches:
         - path:
@@ -82,7 +82,7 @@ spec:
 ---
 # Alloy debug UI — HTTPS, path-based, internal tooling only.
 # Not exposed via Tailscale.
-# Access: https://roguequery.local/alloy (or kubectl port-forward for zero-config)
+# Access: https://${DOMAIN}/alloy (or kubectl port-forward for zero-config)
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
