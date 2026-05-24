@@ -3,15 +3,23 @@
 
   "tagOwners": {
     "tag:k8s-operator": ["autogroup:admin"],
-    "tag:k8s-ingress":  ["autogroup:admin"]
+    "tag:k8s-ingress":  ["autogroup:admin", "tag:k8s-operator"]
   },
 
   "acls": [
     {
-      "_comment": "Allow all tailnet members to reach k8s-ingress proxies",
+      "_comment": "Allow all tailnet members to reach k8s-ingress proxies. Use autogroup:member (singular) for modern tailnets.",
       "action": "accept",
-      "src":    ["autogroup:members"],
+      "src":    ["autogroup:member"],
       "dst":    ["tag:k8s-ingress:*"]
+    }
+  ],
+
+  "nodeAttrs": [
+    {
+      "_comment": "Prevent operator-managed proxy pods from going offline on key expiry",
+      "target": ["tag:k8s-ingress", "tag:k8s-operator"],
+      "attr": ["noExpiry"]
     }
   ]
 }
