@@ -1,6 +1,48 @@
 # k3s-cilium-o11y-stack 🔭
 
-Single-node homelab observability template — k3s · Cilium · Envoy Gateway · Grafana · ClickHouse · Prometheus · Alloy.
+> Template for bootstrapping your own local eBPF-powered, OTEL-compatible observability stack
+
+## OS Support
+**Linux 🐧 only** for now
+
+While MacOS supports Docker 🐳, eBPF is trickier to do inside VMs.
+
+## Overview
+
+This project seeks to reduce the complex and costly $$$ cloud ☁️ deployments of Kubernetes-backed observability into a local-first implementation that empowers DevOps, SREs, and other observability practictioners with an industry-standard foundation powered by well-known open-source projects.
+
+Each component of this stack was chosen against the following criteria:
+- **Mature and open source** - preferrably part of the CNCF ecosystem
+- **OpenTelemetry support 🔭** - OTel is the defacto standard for observing systems
+- **eBPF support 🐝** - eBPF is becoming a standard for instrumenting networks and increasingly applications
+- **Support out-of-the-box visualizations + dashboards** - harness the many dashboards and visualizations created by the open source community
+- **Local-first deployments** - easy to deploy, observe, and modify locally
+
+### Why not use Clickhouse's ClickStack, SigNoz, et al instead?
+
+Since we're using eBPF-powered Cilium to instrument and visualize our stack's network, the Hubble UI packaged with Cilium uses Grafana dashboards and Prometheus metrics. Given these requiremnts it was simpler to have a stack that hews to the least amount of moving parts as opposed to building custom shims to shape the data to fit in a box.
+
+Using Grafana and Hubble for visualizations gives us the best of both worlds - a vibrant collection of Grafana dashboards alongside out-of-the-box visualizations of the stack's network via Hubble. Exposing the base components of ClickHouse and Cilium gives operators a deeper view of how telemetry flows compared to a more all-in-one solution like Signoz or Grafana's LGTM omnibus images.
+
+This observability stack is opinionated in that eBPF is The Way ™️ for observing and securing networks. But to-date its unclear how eBPF meshes with the other traditional pillars of observability: metrics, traces, and logs. By deploying Cilium as the CNI we can do meta-analysis of how telemetry data flows - versus today were a blackbox sidecar is spun up alongside your application and its assumed your data will make it upstream to your vendor of choice.
+
+## Components
+
+| Component | Layer | Role |
+|-----------|-------|------|
+| [k3s](https://k3s.io) | Cluster | Lightweight Kubernetes; runs with flannel, kube-proxy, and Traefik disabled to make room for Cilium + Envoy Gateway |
+| [Cilium](https://cilium.io) | Networking | eBPF CNI — pod networking, kube-proxy replacement, and L2 LoadBalancer IP pool |
+| [Hubble UI](https://docs.cilium.io/en/stable/gettingstarted/hubble/) | Networking | Real-time network flow visualization built into Cilium |
+| [Envoy Gateway](https://gateway.envoyproxy.io) | Ingress | Kubernetes Gateway API controller; routes HTTPS subdomains to in-cluster services |
+| [mkcert](https://github.com/FiloSottile/mkcert) | TLS | [@FiloSottile](https://github.com/FiloSottile)'s excellent tool for bringing https to `localhost` |
+| [Prometheus](https://prometheus.io) | Observability | Metrics scraping and time-series storage |
+| [Grafana Alloy](https://grafana.com/oss/alloy-opentelemetry-collector/) | Observability | DaemonSet telemetry collector; receives OTLP from apps, scrapes Cilium + Prometheus targets |
+| [ClickHouse](https://clickhouse.com) | Observability | OLAP database; backend store for logs, traces, and metrics |
+| ch-writer | Observability | Temporary OTLP → ClickHouse bridge (removed once Alloy ships a native ClickHouse exporter — [grafana/alloy#3492](https://github.com/grafana/alloy/issues/3492)) |
+| [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse |
+| [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS |
+
+## Architecture
 
 ```
                     ┌─────────────────────────── k3s cluster ─────────────────────────────────────┐
@@ -22,7 +64,7 @@ Single-node homelab observability template — k3s · Cilium · Envoy Gateway ·
 
 ## Services & Routes
 
-Every service gets its own subdomain via Envoy Gateway (LAN) or the Tailscale operator (remote).
+Every service gets its own subdomain via Envoy Gateway (LAN) or the Tailscale operator (remote). Below are the services powering the observability stack:
 
 | Service | LAN URL | Tailscale URL | Routing | TLS |
 |---------|---------|---------------|---------|-----|
@@ -198,8 +240,6 @@ curl -I https://grafana.example.local
 kubectl exec -n o11y deploy/ch-writer -- \
   curl -s "http://clickhouse.o11y.svc.cluster.local:8123/?query=SELECT+count()+FROM+otel.otel_logs"
 ```
-
-Alloy debug UI: `https://example.local/alloy`
 
 ---
 
