@@ -1,6 +1,6 @@
 # k3s-cilium-o11y-stack 🔭
 
-Single-node homelab observability template — k3s · Cilium · Envoy Gateway · Grafana · ClickHouse · Prometheus · Alloy.
+Single-node homelab observability template — [k3s](https://k3s.io) · [Cilium](https://cilium.io) · [Envoy Gateway](https://gateway.envoyproxy.io) · [Grafana](https://grafana.com) · [ClickHouse](https://clickhouse.com) · [Prometheus](https://prometheus.io) · [Alloy](https://grafana.com/oss/alloy-opentelemetry-collector/).
 
 ```
                     ┌─────────────────────────── k3s cluster ─────────────────────────────────────┐
