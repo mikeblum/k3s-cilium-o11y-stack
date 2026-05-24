@@ -1,4 +1,5 @@
-NS := tailscale
+NS                := tailscale
+TAILSCALE_TAILNET ?= homelab-operator
 
 .PHONY: repo install uninstall status logs-grafana logs-hubble
 
@@ -9,10 +10,11 @@ repo:
 install: repo
 	@test -f values.secret.yaml || \
 		(echo "ERROR: values.secret.yaml missing — copy from values.secret.yaml.example and fill in OAuth creds"; exit 1)
+	TAILSCALE_TAILNET=$(TAILSCALE_TAILNET) envsubst '$${TAILSCALE_TAILNET}' < values.yaml | \
 	helm upgrade --install tailscale-operator tailscale/tailscale-operator \
 		--namespace $(NS) \
 		--create-namespace \
-		--values values.yaml \
+		--values /dev/stdin \
 		--values values.secret.yaml \
 		--wait
 	kubectl apply -f manifests/

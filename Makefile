@@ -6,8 +6,9 @@ NODE_IP   ?= $(shell $(_IP_CMD))
 # /26 allocates 62 addresses
 NODE_CIDR  ?= $(NODE_IP)/26
 
-DOMAIN     ?= example.local
-TLS_SECRET := $(subst .,-, $(DOMAIN))-tls
+DOMAIN                 ?= example.local
+TLS_SECRET             := $(subst .,-,$(DOMAIN))-tls
+ENVOY_GATEWAY_VERSION  ?= v1.8.0
 
 export KUBECONFIG
 
@@ -16,7 +17,7 @@ export KUBECONFIG
         k3s-install k3s-uninstall \
         cilium-install cilium-upgrade cilium-status cilium-lb \
         tls-install tls-check-expiry \
-        gateway-apply \
+        gateway-install gateway-apply \
         o11y-install o11y-uninstall o11y-status \
         tailscale-install tailscale-status
 
@@ -26,9 +27,10 @@ help:
 	@echo "example.local IaC: k3s + Cilium + Envoy Gateway + ClickHouse ClickStack + Tailscale"
 	@echo ""
 	@echo "Variables (override on any target):"
-	@echo "  DOMAIN     = $(DOMAIN)"
-	@echo "  NODE_IP    = $(NODE_IP)"
-	@echo "  NODE_CIDR  = $(NODE_CIDR)   (LB IP pool — free range on your LAN)"
+	@echo "  DOMAIN                = $(DOMAIN)"
+	@echo "  NODE_IP               = $(NODE_IP)"
+	@echo "  NODE_CIDR             = $(NODE_CIDR)   (LB IP pool — free range on your LAN)"
+	@echo "  ENVOY_GATEWAY_VERSION = $(ENVOY_GATEWAY_VERSION)"
 	@echo "  Example:   make tls-install DOMAIN=home.example.com"
 	@echo "  Example:   make cilium-lb   NODE_CIDR=192.168.1.192/26"
 	@echo ""
@@ -36,8 +38,9 @@ help:
 	@echo "  make k3s-install          Install k3s"
 	@echo "  make cilium-install       Install Cilium via Helm"
 	@echo "  make cilium-lb            Apply LB IP pool + L2 policy"
+	@echo "  make gateway-install      Install Envoy Gateway controller"
 	@echo "  make tls-install          Generate mkcert wildcard cert + k8s Secret"
-	@echo "  make gateway-apply        Apply Envoy Gateway + cluster-ingress"
+	@echo "  make gateway-apply        Apply cluster-ingress Gateway + GatewayClass"
 	@echo "  make o11y-install         Install full o11y stack (Helm + manifests)"
 	@echo "  make tailscale-install    Install Tailscale operator + ingress resources"
 	@echo ""
@@ -84,8 +87,11 @@ tls-check-expiry:
 
 # ─── Envoy Gateway ───────────────────────────────────────────────────────────
 
+gateway-install:
+	@ENVOY_GATEWAY_VERSION=$(ENVOY_GATEWAY_VERSION) bash infra/envoy-gateway/install.sh
+
 gateway-apply:
-	@DOMAIN=$(DOMAIN) TLS_SECRET=$(TLS_SECRET) envsubst '$${TLS_SECRET}' \
+	@TLS_SECRET=$(TLS_SECRET) envsubst '$${TLS_SECRET}' \
 	  < k8s/envoy-gateway/gateway.yaml | kubectl apply -f -
 
 # ─── O11y stack ──────────────────────────────────────────────────────

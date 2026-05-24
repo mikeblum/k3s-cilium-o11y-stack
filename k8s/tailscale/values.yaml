@@ -11,7 +11,7 @@
 #   3. Update ACL — see acl-snippet.json
 
 operatorConfig:
-  hostname: roguequery-operator   # appears in tailnet Machines list
+  hostname: ${TAILSCALE_TAILNET}   # appears in tailnet Machines list — set via TAILSCALE_TAILNET make var
 
 proxyConfig:
   defaultTags:

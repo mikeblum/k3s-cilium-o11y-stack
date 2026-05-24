@@ -43,7 +43,11 @@ make cilium-install # installs Cilium via Helm (Hubble + Envoy proxy enabled)
 make cilium-lb      # applies LB IP pool + L2 announcement policy
 ```
 
-Edit `manifests/cilium/lb-pool.yaml` to set a free IP range on your LAN before running `cilium-lb`.
+`cilium-lb` derives `NODE_CIDR` from your primary NIC's IP (auto-detected). Override if needed:
+
+```bash
+make cilium-lb NODE_CIDR=192.168.1.192/26   # a free /26 range on your LAN
+```
 
 Verify Cilium is up before continuing:
 
@@ -51,13 +55,21 @@ Verify Cilium is up before continuing:
 kubectl exec -n kube-system ds/cilium -- curl -s http://localhost:9962/metrics | head -5
 ```
 
-### 2. TLS
+### 2. Envoy Gateway
+
+```bash
+make gateway-install   # installs the Envoy Gateway controller into envoy-gateway-system
+```
+
+This creates the `envoy-gateway-system` namespace — required before TLS setup.
+
+### 3. TLS
 
 ```bash
 make tls-install
 ```
 
-Generates a `*.example.local` wildcard cert with mkcert and stores it as a Secret in `envoy-gateway-system`. See `k8s/tls/README.md` for how to trust the CA on other devices.
+Requires [mkcert](https://github.com/FiloSottile/mkcert) on the host. Generates a `*.example.local` wildcard cert and stores it as a Secret in `envoy-gateway-system`. See `k8s/tls/README.md` for how to trust the CA on other devices.
 
 Add to `/etc/hosts` on your desktop:
 
@@ -65,10 +77,10 @@ Add to `/etc/hosts` on your desktop:
 <host-ip>  example.local grafana.example.local hubble.example.local
 ```
 
-### 3. Envoy Gateway
+### 4. Envoy Gateway routes
 
 ```bash
-make gateway-apply
+make gateway-apply   # applies GatewayClass + cluster-ingress Gateway
 ```
 
 Verify:
@@ -79,7 +91,7 @@ kubectl get gateway cluster-ingress -n envoy-gateway-system \
 # Expected: True
 ```
 
-### 4. o11y stack
+### 5. o11y stack
 
 ```bash
 make o11y-install
@@ -96,7 +108,7 @@ grafana-xxxxx        1/1  Running
 prometheus-server    1/1  Running
 ```
 
-### 5. Tailscale
+### 6. Tailscale
 
 ```bash
 cd k8s/tailscale
@@ -176,7 +188,7 @@ kubectl apply -f k8s/o11y/manifests/alloy-configmap.yaml  # hot-reloads, no rest
 **Grafana unreachable:**
 ```bash
 kubectl describe httproute grafana -n o11y | grep -A5 Status
-kubectl get secret roguequery-local-tls -n envoy-gateway-system
+kubectl get secret example-local-tls -n envoy-gateway-system   # dots-to-dashes of your DOMAIN
 ```
 
 **ClickHouse not receiving data:**
