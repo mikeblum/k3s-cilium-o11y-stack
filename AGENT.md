@@ -50,7 +50,7 @@ sudo apt install gettext
 
 Check all at once:
 ```bash
-make prereqs
+make setup
 ```
 
 `kubectl` is installed by k3s — it is available after `make k3s-install`.
@@ -261,7 +261,7 @@ See `README.md` § Tailscale for the full admin console setup steps.
 Don't guess — use the status targets to observe before acting:
 
 ```bash
-make prereqs          # missing tools?
+make setup            # missing tools?
 make cilium-status    # Cilium + Hubble pods
 make o11y-status      # all o11y pods (look for CrashLoopBackOff / ErrImagePull)
 make o11y-routes      # HTTPRoute accepted/attached status
