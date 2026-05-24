@@ -19,8 +19,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --disable=traefik \
   --disable=servicelb \
   --disable=metrics-server \
-  --write-kubeconfig-mode=644 \
-  --kube-apiserver-arg=feature-gates=GatewayAPI=true" sh -
+  --write-kubeconfig-mode=644" sh -
 
 echo "Waiting for k3s API to be ready..."
 until kubectl get nodes &>/dev/null; do sleep 2; done
