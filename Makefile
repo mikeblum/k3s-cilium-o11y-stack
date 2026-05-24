@@ -80,6 +80,9 @@ cilium-lb:
 	@NODE_CIDR=$(NODE_CIDR) envsubst '$${NODE_CIDR}' \
 	  < manifests/cilium/lb-pool.yaml | kubectl apply -f -
 	@kubectl apply -f manifests/cilium/l2-policy.yaml
+	@echo ""
+	@echo "LB pool ($(NODE_CIDR)) and L2 announcement policy applied."
+	@echo "Next: make gateway-install"
 
 cilium-status:
 	@kubectl -n kube-system get pods -l k8s-app=cilium -o wide
@@ -92,6 +95,8 @@ cilium-status:
 
 tls-install:
 	@$(MAKE) -C k8s/tls install DOMAIN=$(DOMAIN)
+	@echo ""
+	@echo "Next: make gateway-apply DOMAIN=$(DOMAIN)"
 
 tls-check-expiry:
 	@$(MAKE) -C k8s/tls check-expiry DOMAIN=$(DOMAIN)
@@ -104,6 +109,8 @@ gateway-install:
 gateway-apply:
 	@TLS_SECRET=$(TLS_SECRET) envsubst '$${TLS_SECRET}' \
 	  < k8s/envoy-gateway/gateway.yaml | kubectl apply -f -
+	@echo ""
+	@echo "Next: make o11y-install"
 
 # ─── O11y stack ──────────────────────────────────────────────────────
 
