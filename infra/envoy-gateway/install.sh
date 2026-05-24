@@ -14,6 +14,8 @@ KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
 export KUBECONFIG
 
+command -v helm >/dev/null || { echo "ERROR: helm not found. Install: https://helm.sh/docs/intro/install/"; exit 1; }
+
 echo "Installing Envoy Gateway ${ENVOY_GATEWAY_VERSION}..."
 
 helm upgrade --install eg \

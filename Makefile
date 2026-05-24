@@ -12,7 +12,7 @@ ENVOY_GATEWAY_VERSION  ?= v1.8.0
 
 export KUBECONFIG
 
-.PHONY: help \
+.PHONY: help prereqs \
 		ip \
         k3s-install k3s-uninstall \
         cilium-install cilium-upgrade cilium-status cilium-lb \
@@ -22,6 +22,17 @@ export KUBECONFIG
         tailscale-install tailscale-status
 
 # ─── Help ────────────────────────────────────────────────────────────────────
+
+prereqs:
+	@echo "Checking prerequisites..."
+	@command -v helm      >/dev/null || { echo "  MISSING: helm   — https://helm.sh/docs/intro/install/"; }
+	@command -v kubectl   >/dev/null || { echo "  MISSING: kubectl — bundled with k3s after k3s-install"; }
+	@command -v mkcert    >/dev/null || { echo "  MISSING: mkcert  — https://github.com/FiloSottile/mkcert"; }
+	@command -v envsubst  >/dev/null || { echo "  MISSING: envsubst — install gettext: sudo apt install gettext"; }
+	@command -v helm      >/dev/null && \
+	 command -v mkcert    >/dev/null && \
+	 command -v envsubst  >/dev/null && \
+	 echo "All prerequisites satisfied." || true
 
 help:
 	@echo "example.local IaC: k3s + Cilium + Envoy Gateway + ClickHouse ClickStack + Tailscale"
