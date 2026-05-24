@@ -29,6 +29,25 @@ k3s + Cilium + Envoy Gateway + ClickHouse o11y stack.
 
 ---
 
+## Prerequisites
+
+Tools required on the host before bootstrapping:
+
+| Tool | Install |
+|------|---------|
+| `helm` | `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \| bash` |
+| `mkcert` | `apt install mkcert` or [GitHub releases](https://github.com/FiloSottile/mkcert/releases) |
+| `envsubst` | `sudo apt install gettext` |
+
+`kubectl` is provided by k3s (`/usr/local/bin/kubectl` → `k3s`). Run after `make k3s-install`.
+
+Check all at once:
+```bash
+make prereqs
+```
+
+---
+
 ## Bootstrap
 
 Run these once, in order, on the host.

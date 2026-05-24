@@ -7,6 +7,8 @@ KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
 export KUBECONFIG
 
+command -v helm >/dev/null || { echo "ERROR: helm not found. Install: https://helm.sh/docs/intro/install/"; exit 1; }
+
 echo "Installing Cilium ${CILIUM_VERSION} with NODE_IP=${NODE_IP}"
 
 helm repo add cilium https://helm.cilium.io/ --force-update
@@ -34,4 +36,5 @@ echo "Hubble relay status:"
 kubectl -n kube-system get pods -l k8s-app=hubble-relay -o wide
 
 echo ""
-echo "Next: apply manifests/cilium/ for LB pool + L2 policy, then manifests/ for the o11y stack."
+echo "Next steps (from repo root):"
+echo "  make cilium-lb NODE_CIDR=<free /26 on your LAN>   # e.g. ${NODE_IP%.*}.192/26"
