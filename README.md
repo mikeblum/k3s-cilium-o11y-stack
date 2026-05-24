@@ -52,6 +52,8 @@ make setup
 
 Run these once, in order, on the host.
 
+> **Optional: Tailscale remote access** — steps 1–5 stand up the full stack on your LAN. If you also want the `https://grafana.<tailnet>.ts.net` / `https://hubble.<tailnet>.ts.net` URLs accessible outside the LAN, continue to [Step 6: Tailscale](#6-tailscale) after step 5.
+
 ### 1. k3s + Cilium
 
 From the repo root:
@@ -129,28 +131,51 @@ prometheus-server    1/1  Running
 
 ### 6. Tailscale
 
+The admin console steps must be done **before** running `make install` — the OAuth client requires the tags to exist in the ACL first.
+
+**6a. Tailscale admin console** (one-time, in this order)
+
+1. **Settings → DNS** → enable MagicDNS and HTTPS
+
+2. **Access Controls** → merge `k8s/tailscale/acl-snippet.json` into your tailnet ACL.
+   At minimum you need the `tagOwners` block (required before you can create an OAuth client with these tags) and the `acls` rule:
+
+   ```json
+   "tagOwners": {
+     "tag:k8s-operator": ["autogroup:admin"],
+     "tag:k8s-ingress":  ["autogroup:admin"]
+   },
+   "acls": [
+     { "action": "accept", "src": ["autogroup:members"], "dst": ["tag:k8s-ingress:*"] }
+   ]
+   ```
+
+   Also add `noExpiry` so proxy pods don't go offline when key rotation hits:
+
+   ```json
+   "nodeAttrs": [{ "target": ["tag:k8s-ingress", "tag:k8s-operator"], "attr": ["noExpiry"] }]
+   ```
+
+3. **Settings → OAuth clients** → create a client with:
+   - Scopes: Devices → Core / Auth Keys / Services → **Write**
+   - Tag: `tag:k8s-operator`
+   - Save the `clientId` and `clientSecret`
+
+**6b. Install the operator**
+
 ```bash
 cd k8s/tailscale
 cp values.secret.yaml.example values.secret.yaml
-# fill in OAuth clientId + clientSecret
+# fill in clientId + clientSecret from step 6a
 make install
 ```
 
-First-time Tailscale admin console setup:
-1. Settings → DNS → enable MagicDNS + HTTPS
-2. OAuth client → Devices (Core/Auth Keys/Services) write, tag `tag:k8s-operator`
-3. Merge `acl-snippet.json` into your tailnet ACL
+> `make install` automatically annotates the `tailscale` namespace with `io.cilium/no-track-port="0"` after Helm creates it. This is required when Cilium runs in kube-proxy replacement mode — without it, Cilium's eBPF connection tracking intercepts proxy pod traffic and connections hang.
 
-Also add `noExpiry` to your ACL for operator-managed devices to prevent proxy pods going offline:
-
-```json
-"nodeAttrs": [{ "target": ["tag:k8s-ingress", "tag:k8s-operator"], "attr": ["noExpiry"] }]
-```
-
-If Cilium runs in kube-proxy replacement mode, annotate the namespace first:
+Verify proxy pods come up (one per Ingress):
 
 ```bash
-kubectl annotate namespace tailscale io.cilium/no-track-port="0"
+cd k8s/tailscale && make status
 ```
 
 ---
