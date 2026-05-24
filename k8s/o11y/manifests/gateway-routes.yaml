@@ -53,7 +53,7 @@ spec:
             value: /
       backendRefs:
         - name: grafana
-          port: 3000
+          port: 80
 
 ---
 # Hubble UI — host-based, HTTPS, served at /
