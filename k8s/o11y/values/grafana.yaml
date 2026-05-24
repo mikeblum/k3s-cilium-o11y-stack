@@ -1,34 +1,33 @@
 # Grafana 13.0.0 — pinned at GrafanaCON2026 release
-# Served at / — host-based routing via Envoy (grafana.example.local)
+# Served at / — host-based routing via Envoy (grafana.<domain>)
 # and Tailscale Ingress (grafana.<tailnet>.ts.net).
 # No GF_SERVER_ROOT_URL or GF_SERVER_SERVE_FROM_SUB_PATH needed.
 
-grafana:
-  image:
-    tag: "13.0.0"
+image:
+  tag: "13.0.0"
 
-  plugins:
-    - grafana-clickhouse-datasource
+plugins:
+  - grafana-clickhouse-datasource
 
-  sidecar:
-    datasources:
-      enabled: true   # auto-loads datasources from ConfigMaps with grafana_datasource=1 label
+sidecar:
+  datasources:
+    enabled: true   # auto-loads datasources from ConfigMaps with grafana_datasource=1 label
 
-  persistence:
-    enabled: true
-    size: 5Gi
+persistence:
+  enabled: true
+  size: 5Gi
 
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: cilium
-          folder: Cilium
-          type: file
-          options:
-            path: /var/lib/grafana/dashboards/cilium
-        - name: otel
-          folder: OTel
-          type: file
-          options:
-            path: /var/lib/grafana/dashboards/otel
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: cilium
+        folder: Cilium
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards/cilium
+      - name: otel
+        folder: OTel
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards/otel
