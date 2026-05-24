@@ -76,6 +76,22 @@ Every service gets its own subdomain via Envoy Gateway (LAN) or the Tailscale op
 - **Tailscale** — Let's Encrypt cert auto-provisioned by the Tailscale operator; no hosts-file changes, works anywhere on your tailnet.
 - **Adding a service** — see [Adding a service](#adding-a-service) for the HTTPRoute + optional Tailscale Ingress pattern.
 
+## Stack
+
+| Component | Layer | Role |
+|-----------|-------|------|
+| [k3s](https://k3s.io) | Cluster | Lightweight Kubernetes; runs with flannel, kube-proxy, and Traefik disabled to make room for Cilium + Envoy Gateway |
+| [Cilium](https://cilium.io) | Networking | eBPF CNI — pod networking, kube-proxy replacement, and L2 LoadBalancer IP pool |
+| [Hubble UI](https://docs.cilium.io/en/stable/gettingstarted/hubble/) | Networking | Real-time network flow visualization built into Cilium |
+| [Envoy Gateway](https://gateway.envoyproxy.io) | Ingress | Kubernetes Gateway API controller; routes HTTPS subdomains to in-cluster services |
+| [mkcert](https://github.com/FiloSottile/mkcert) | TLS | Local CA; issues a `*.example.local` wildcard cert for LAN HTTPS |
+| [Prometheus](https://prometheus.io) | Observability | Metrics scraping and time-series storage |
+| [Grafana Alloy](https://grafana.com/oss/alloy-opentelemetry-collector/) | Observability | DaemonSet telemetry collector; receives OTLP from apps, scrapes Cilium + Prometheus targets |
+| [ClickHouse](https://clickhouse.com) | Observability | OLAP database; backend store for logs, traces, and metrics |
+| ch-writer | Observability | Temporary OTLP → ClickHouse bridge (removed once Alloy ships a native ClickHouse exporter — [grafana/alloy#3492](https://github.com/grafana/alloy/issues/3492)) |
+| [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse |
+| [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS |
+
 ---
 
 ## Prerequisites
