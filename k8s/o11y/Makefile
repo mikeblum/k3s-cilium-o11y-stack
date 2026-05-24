@@ -1,5 +1,5 @@
 HELM_REPOS := \
-	clickhouse=https://charts.clickhouse.com \
+	clickhouse=https://charts.pascaliske.dev \
 	grafana=https://grafana.github.io/helm-charts \
 	prometheus-community=https://prometheus-community.github.io/helm-charts
 
@@ -15,7 +15,7 @@ repos:
 
 install: repos
 	kubectl apply -f namespace.yaml
-	helm upgrade --install clickhouse  clickhouse/clickhouse            -n $(NS) -f values/clickhouse.yaml
+	helm upgrade --install clickhouse  clickhouse/clickhouse            -n $(NS) -f values/clickhouse.yaml --version 1.0.0
 	helm upgrade --install prometheus  prometheus-community/prometheus  -n $(NS) -f values/prometheus.yaml
 	kubectl apply -f manifests/alloy-configmap.yaml
 	helm upgrade --install alloy       grafana/alloy                    -n $(NS) -f values/alloy.yaml
