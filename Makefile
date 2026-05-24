@@ -16,18 +16,18 @@ ENVOY_GATEWAY_VERSION  ?= v1.8.0
 
 export KUBECONFIG
 
-.PHONY: help prereqs \
+.PHONY: help setup \
 		ip \
         k3s-install k3s-uninstall \
         cilium-install cilium-upgrade cilium-status cilium-lb \
         tls-install tls-check-expiry \
         gateway-install gateway-apply \
-        o11y-install o11y-uninstall o11y-status \
+        o11y-install o11y-uninstall o11y-status o11y-routes \
         tailscale-install tailscale-status
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
-prereqs:
+setup:
 	@echo "Checking prerequisites..."
 	@command -v helm      >/dev/null || { echo "  MISSING: helm   — https://helm.sh/docs/intro/install/"; }
 	@command -v kubectl   >/dev/null || { echo "  MISSING: kubectl — bundled with k3s after k3s-install"; }
@@ -126,6 +126,9 @@ o11y-uninstall:
 
 o11y-status:
 	@$(MAKE) -C k8s/o11y status
+
+o11y-routes:
+	@$(MAKE) -C k8s/o11y routes
 
 # ─── Tailscale ───────────────────────────────────────────────────────────────
 
