@@ -256,83 +256,22 @@ See `README.md` § Tailscale for the full admin console setup steps.
 
 ---
 
-## Common failure modes
+## When something looks wrong
 
-### k3s service fails to start
-```
-Job for k3s.service failed
-Error: unrecognized feature gate: GatewayAPI
-```
-**Fix:** The `GatewayAPI` feature gate was removed in k8s 1.28. Remove it from
-`infra/k3s/install.sh` if upgrading from an older version of this repo.
+Don't guess — use the status targets to observe before acting:
 
----
-
-### `helm: command not found`
-Install helm first: `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash`
-
----
-
-### `mkcert not found`
-`sudo apt install mkcert` (Ubuntu 20.04+)
-
----
-
-### ClickHouse auth failure (ch-writer CrashLoopBackOff)
-```
-default: Authentication failed: password is incorrect
-```
-The pascaliske ClickHouse chart restricts the default user to localhost. This
-stack mounts a `clickhouse-users-override` ConfigMap to open cluster access.
-If you see this, verify the ConfigMap and the extraVolumeMounts are applied:
 ```bash
-kubectl get configmap clickhouse-users-override -n o11y
-kubectl exec -n o11y clickhouse-0 -- \
-  cat /etc/clickhouse-server/users.d/00-network-override.xml
-```
-If missing, run `make o11y-install` (it applies the ConfigMap before helm upgrade).
-
----
-
-### Alloy CrashLoopBackOff (config parse error)
-```
-Error: unrecognized attribute name "labels"
-```
-The `alloy-configmap.yaml` uses `label {}` blocks (not `labels = [...]`).
-Re-apply the configmap and restart:
-```bash
-kubectl apply -f k8s/o11y/manifests/alloy-configmap.yaml
-kubectl rollout restart daemonset/alloy -n o11y
+make prereqs          # missing tools?
+make cilium-status    # Cilium + Hubble pods
+make o11y-status      # all o11y pods (look for CrashLoopBackOff / ErrImagePull)
+make o11y-routes      # HTTPRoute accepted/attached status
+make tailscale-status # operator + ingress proxy pods (if installed)
 ```
 
----
-
-### Grafana returns HTTP 500 through gateway
-Verify the Grafana service port:
-```bash
-kubectl get svc grafana -n o11y
-```
-The service exposes port **80**, not 3000. The HTTPRoute must reference port 80.
-Check `k8s/o11y/manifests/gateway-routes.yaml` backendRefs.
-
----
-
-### Gateway not Programmed
-```bash
-kubectl get gateway cluster-ingress -n envoy-gateway-system \
-  -o jsonpath='{.status.conditions[?(@.type=="Programmed")].message}'
-```
-Common cause: TLS secret missing. Verify:
-```bash
-kubectl get secret -n envoy-gateway-system | grep tls
-```
-If missing, re-run `make tls-install`.
-
----
-
-### Hubble-relay Pending after cilium-install
-Normal — the node is `NotReady` until Cilium's DaemonSet fully starts. Wait
-~30s; the scheduler will place the pod once the node becomes Ready.
+From there: read pod logs (`kubectl logs -n <ns> <pod> --tail=40`),
+describe the failing resource (`kubectl describe pod/httproute/gateway …`),
+and re-run the relevant `make <step>` once the root cause is clear.
+All install targets are idempotent — re-running is always safe.
 
 ---
 
