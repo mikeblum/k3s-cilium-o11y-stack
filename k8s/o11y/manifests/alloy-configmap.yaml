@@ -60,8 +60,16 @@ data:
       forward_to      = [prometheus.remote_write.local.receiver]
     }
 
+    // ── Cilium operator scraping (Deployment, one replica) ───────────────────
+    // cilium-operator exposes metrics on port 9963 via its ClusterIP service.
+    prometheus.scrape "cilium_operator" {
+      targets         = [{ __address__ = "cilium-operator.kube-system.svc.cluster.local:9963" }]
+      job_name        = "cilium-operator"
+      scrape_interval = "30s"
+      forward_to      = [prometheus.remote_write.local.receiver]
+    }
+
     // ── Prometheus remote write (Cilium + Hubble + scraped metrics) ───────────
-    // cilium-operator is scraped via ServiceMonitor in cilium-servicemonitor.yaml
     prometheus.remote_write "local" {
       endpoint {
         url = "http://prometheus-server.o11y.svc.cluster.local/api/v1/write"
