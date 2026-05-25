@@ -1,15 +1,14 @@
 ---
 # Replaces the pascaliske chart's default-user.xml to:
-#   1. Lock the 'default' user back to localhost (remove the old ::/0 override)
-#   2. Create a 'grafana' user (read-only, SELECT on otel.*) for the Grafana datasource
-#   3. Create an 'otel_writer' user (INSERT + CREATE TABLE on otel.*) for ch-writer
+#   1. Lock the 'default' user back to localhost
+#   2. Create a 'grafana' user (read-only, no password) for the Grafana datasource
+#   3. Create an 'otel_writer' user (INSERT + CREATE TABLE, no password) for ch-writer
 #
-# Passwords are injected at pod startup via from_env — the plaintext values come
-# from the clickhouse-users Secret, mounted as GRAFANA_PASSWORD and OTEL_WRITER_PASSWORD
-# environment variables in values/clickhouse.yaml.
+# No passwords — the cluster is LAN-only; Tailscale is the auth boundary, the same
+# trust model as anonymous-admin Grafana. The user split exists to enforce permissions
+# (grafana can't write; otel_writer can't read arbitrary data), not authentication.
 #
-# ClickHouse's built-in 'readonly' profile restricts the grafana user to SELECT only;
-# it cannot write, change settings, or run DDL.
+# ClickHouse's built-in 'readonly' profile restricts the grafana user to SELECT only.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -29,7 +28,7 @@ data:
 
         <!-- Grafana datasource: read-only across the otel database -->
         <grafana>
-          <password from_env="GRAFANA_PASSWORD"/>
+          <password></password>
           <networks><ip>::/0</ip></networks>
           <profile>readonly</profile>
           <quota>default</quota>
@@ -37,7 +36,7 @@ data:
 
         <!-- ch-writer OTLP ingest: INSERT + CREATE TABLE on otel.* -->
         <otel_writer>
-          <password from_env="OTEL_WRITER_PASSWORD"/>
+          <password></password>
           <networks><ip>::/0</ip></networks>
           <profile>default</profile>
           <quota>default</quota>

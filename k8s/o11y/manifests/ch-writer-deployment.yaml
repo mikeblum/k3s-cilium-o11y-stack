@@ -36,12 +36,6 @@ spec:
           ports:
             - containerPort: 4317
               name: otlp-grpc
-          env:
-            - name: CLICKHOUSE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: clickhouse-users
-                  key: otel_writer_password
           volumeMounts:
             - name: config
               mountPath: /etc/otelcol
@@ -75,7 +69,6 @@ data:
       clickhouse:
         endpoint: tcp://clickhouse.o11y.svc.cluster.local:9000
         username: otel_writer
-        password: ${CLICKHOUSE_PASSWORD}   # injected from clickhouse-users Secret
         database: otel
         logs_table_name:    otel_logs
         traces_table_name:  otel_traces

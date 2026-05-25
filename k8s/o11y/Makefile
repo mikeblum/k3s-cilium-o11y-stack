@@ -6,12 +6,6 @@ HELM_REPOS := \
 NS         := o11y
 DOMAIN     ?= example.local
 
-# GRAFANA_CLICKHOUSE_PASSWORD is read from the clickhouse-users Secret and must be
-# exported in the shell before running `make install` so envsubst can substitute it
-# into grafana-datasources-configmap.yaml.
-# Example: export GRAFANA_CLICKHOUSE_PASSWORD=$(kubectl get secret -n o11y clickhouse-users \
-#            -o jsonpath='{.data.grafana_password}' | base64 -d)
-
 .PHONY: repos install uninstall status routes
 
 repos:
@@ -21,8 +15,6 @@ repos:
 
 install: repos
 	kubectl apply -f namespace.yaml
-	# ClickHouse users Secret must exist before ClickHouse starts (provides GRAFANA_PASSWORD + OTEL_WRITER_PASSWORD).
-	# Create it separately: kubectl apply -f manifests/clickhouse-users-secret.yaml
 	kubectl apply -f manifests/clickhouse-users-override.yaml
 	helm upgrade --install clickhouse  clickhouse/clickhouse            -n $(NS) -f values/clickhouse.yaml --version 1.0.0
 	helm upgrade --install prometheus  prometheus-community/prometheus  -n $(NS) -f values/prometheus.yaml
@@ -32,9 +24,7 @@ install: repos
 	kubectl apply -f manifests/alloy-dashboards-configmap.yaml
 	kubectl apply -f manifests/clickhouse-dashboards-configmap.yaml
 	helm upgrade --install grafana     grafana/grafana                  -n $(NS) -f values/grafana.yaml
-	DOMAIN=$(DOMAIN) GRAFANA_CLICKHOUSE_PASSWORD=$(GRAFANA_CLICKHOUSE_PASSWORD) \
-		envsubst '$${DOMAIN} $${GRAFANA_CLICKHOUSE_PASSWORD}' \
-		< manifests/grafana-datasources-configmap.yaml | kubectl apply -f -
+	kubectl apply -f manifests/grafana-datasources-configmap.yaml
 	kubectl apply -f manifests/reference-grants.yaml
 	DOMAIN=$(DOMAIN) envsubst '$${DOMAIN}' < manifests/gateway-routes.yaml | kubectl apply -f -
 

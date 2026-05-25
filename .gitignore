@@ -4,7 +4,6 @@ k8s/tailscale/values.secret.yaml
 # mkcert generated cert files
 k8s/tls/certs/
 
-
 # ClickHouse user credentials
 k8s/o11y/manifests/clickhouse-users-secret.yaml
 
