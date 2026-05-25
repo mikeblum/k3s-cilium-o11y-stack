@@ -3,6 +3,3 @@ k8s/tailscale/values.secret.yaml
 
 # mkcert generated cert files — never commit private keys
 k8s/tls/certs/
-
-# ClickHouse user credentials — contains plaintext passwords
-k8s/o11y/manifests/clickhouse-users-secret.yaml

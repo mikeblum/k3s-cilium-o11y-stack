@@ -17,18 +17,6 @@ env:
     value: UTC
   - name: CLICKHOUSE_DB
     value: otel
-  # Dedicated user passwords, read from the clickhouse-users Secret.
-  # ClickHouse users.xml uses from_env substitution to read these at startup.
-  - name: GRAFANA_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: clickhouse-users
-        key: grafana_password
-  - name: OTEL_WRITER_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: clickhouse-users
-        key: otel_writer_password
 
 ports:
   rest:
