@@ -1,0 +1,32 @@
+# Exposes ClickHouse HTTP interface to your tailnet at https://clickhouse.<tailnet>.ts.net
+#
+# The operator provisions a Tailscale proxy node and a Let's Encrypt certificate
+# automatically. First connection may take 30–60 s while the cert is issued.
+#
+# tls.hosts[0] first label sets the MagicDNS hostname:
+#   "clickhouse" → clickhouse.<tailnet-name>.ts.net
+#
+# TablePlus connection:
+#   Host=clickhouse.<tailnet>.ts.net  Port=443  Protocol=HTTPS  DB=otel  User=grafana
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: clickhouse-ts
+  namespace: o11y
+  annotations:
+    tailscale.com/tags: "tag:k8s-ingress"
+spec:
+  ingressClassName: tailscale
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: clickhouse
+                port:
+                  number: 8123
+  tls:
+    - hosts:
+        - clickhouse

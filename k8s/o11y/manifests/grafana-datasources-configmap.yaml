@@ -25,6 +25,7 @@ data:
           host: clickhouse.o11y.svc.cluster.local
           port: 9000
           protocol: native
+          username: grafana
           defaultDatabase: otel
           logs:
             defaultDatabase: otel
@@ -36,3 +37,7 @@ data:
             defaultTable: otel_traces
             otelEnabled: true
             durationUnit: nanoseconds
+        secureJsonData:
+          # Grafana encrypts this value into its internal DB on first read.
+          # GRAFANA_CLICKHOUSE_PASSWORD is substituted by envsubst in the Makefile.
+          password: "${GRAFANA_CLICKHOUSE_PASSWORD}"
