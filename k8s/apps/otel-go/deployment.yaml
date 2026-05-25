@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-go
+  namespace: otel-demo
+  labels:
+    app: otel-go
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-go
+  template:
+    metadata:
+      labels:
+        app: otel-go
+    spec:
+      containers:
+        - name: otel-go
+          image: ${IMAGE}
+          # IfNotPresent: works for both local k3s ctr import and ghcr.io SHA tags.
+          # Never use Always — that defeats pinned SHA builds.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: metrics
+              containerPort: 2112
+              protocol: TCP
+          env:
+            # ── OTel service identity ──────────────────────────────────────────
+            - name: OTEL_SERVICE_NAME
+              value: otel-go
+            # DOMAIN and TAG are injected at deploy time by the Makefile via envsubst.
+            # DOMAIN is auto-detected from hostname (e.g. mylab.local) — same as the rest of the stack.
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment=${DOMAIN},service.version=${TAG}"
+            # ── Exporter selection (12-factor; swap without rebuild) ───────────
+            # Traces and logs: OTLP gRPC → Alloy → ch-writer → ClickHouse.
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_LOGS_EXPORTER
+              value: otlp
+            - name: OTEL_EXPORTER_PROMETHEUS_PORT
+              value: "2112"
+            # ── OTLP endpoint (traces + logs) ──────────────────────────────────
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://alloy.o11y.svc.cluster.local:4317
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: grpc
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 128Mi
+              cpu: 200m
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534          # nobody
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]

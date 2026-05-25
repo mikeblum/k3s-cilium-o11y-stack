@@ -12,6 +12,10 @@ stack autonomously on a fresh Linux host. Read it top to bottom; do not skip ste
   Using `latest` makes deployments non-reproducible and breaks on silent upstream changes.
 - When bumping a pinned version, update the value in the relevant `values/*.yaml` or manifest,
   verify the changelog for breaking changes, and test before committing.
+- **Test before committing — no exceptions.** For Go code: `go build ./...` (and `go test ./...`
+  if tests exist) must pass cleanly before any `git commit`. For manifests: `kubectl apply --dry-run=client`
+  or `envsubst | kubectl apply --dry-run=client` before staging. Committing untested code wastes
+  review cycles and leaves the branch in a broken state. Fix first, commit second.
 
 ---
 

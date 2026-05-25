@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-go
+  namespace: otel-demo
+  labels:
+    app: otel-go
+spec:
+  type: ClusterIP
+  selector:
+    app: otel-go
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 2112
+      targetPort: metrics
+      protocol: TCP
