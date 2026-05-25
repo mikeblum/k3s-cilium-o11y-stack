@@ -1,10 +1,15 @@
 ---
-# Overrides the pascaliske chart's default-user.xml which restricts the 'default'
-# user to localhost (127.0.0.1/::1). The 'default' user needs to be reachable from
-# other pods in the cluster (ch-writer, Grafana datasource).
+# Replaces the pascaliske chart's default-user.xml to:
+#   1. Lock the 'default' user back to localhost (remove the old ::/0 override)
+#   2. Create a 'grafana' user (read-only, SELECT on otel.*) for the Grafana datasource
+#   3. Create an 'otel_writer' user (INSERT + CREATE TABLE on otel.*) for ch-writer
 #
-# In production you would create a dedicated user with a password instead.
-# For a LAN-only homelab, opening the default user to ::/0 is acceptable.
+# Passwords are injected at pod startup via from_env — the plaintext values come
+# from the clickhouse-users Secret, mounted as GRAFANA_PASSWORD and OTEL_WRITER_PASSWORD
+# environment variables in values/clickhouse.yaml.
+#
+# ClickHouse's built-in 'readonly' profile restricts the grafana user to SELECT only;
+# it cannot write, change settings, or run DDL.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,10 +19,31 @@ data:
   00-network-override.xml: |
     <clickhouse>
       <users>
+        <!-- Lock default user back to localhost — dedicated users handle all app access -->
         <default>
           <networks>
-            <ip>::/0</ip>
+            <ip>127.0.0.1</ip>
+            <ip>::1</ip>
           </networks>
         </default>
+
+        <!-- Grafana datasource: read-only across the otel database -->
+        <grafana>
+          <password from_env="GRAFANA_PASSWORD"/>
+          <networks><ip>::/0</ip></networks>
+          <profile>readonly</profile>
+          <quota>default</quota>
+        </grafana>
+
+        <!-- ch-writer OTLP ingest: INSERT + CREATE TABLE on otel.* -->
+        <otel_writer>
+          <password from_env="OTEL_WRITER_PASSWORD"/>
+          <networks><ip>::/0</ip></networks>
+          <profile>default</profile>
+          <quota>default</quota>
+          <databases>
+            <otel/>
+          </databases>
+        </otel_writer>
       </users>
     </clickhouse>

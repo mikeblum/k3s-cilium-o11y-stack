@@ -62,7 +62,7 @@ Requires [mkcert](https://github.com/FiloSottile/mkcert) on the host. Generates 
 Add to `/etc/hosts` on your desktop:
 
 ```
-<host-ip>  example.local grafana.example.local hubble.example.local
+<host-ip>  example.local grafana.example.local hubble.example.local clickhouse.example.local
 ```
 
 ### 4. Envoy Gateway routes
@@ -80,6 +80,34 @@ kubectl get gateway cluster-ingress -n envoy-gateway-system \
 ```
 
 ### 5. o11y stack
+
+Before first install, generate ClickHouse user credentials and store them in a Secret:
+
+```bash
+# Generate two random passwords (one per ClickHouse user)
+GRAFANA_PW=$(openssl rand -hex 16)
+OTEL_WRITER_PW=$(openssl rand -hex 16)
+
+# Write the secret file (gitignored — never committed)
+cat > k8s/o11y/manifests/clickhouse-users-secret.yaml <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: clickhouse-users
+  namespace: o11y
+type: Opaque
+stringData:
+  grafana_password: "$GRAFANA_PW"
+  otel_writer_password: "$OTEL_WRITER_PW"
+EOF
+
+kubectl apply -f k8s/o11y/manifests/clickhouse-users-secret.yaml
+
+# Export GRAFANA_CLICKHOUSE_PASSWORD for the Makefile's envsubst step
+export GRAFANA_CLICKHOUSE_PASSWORD="$GRAFANA_PW"
+```
+
+Then install the stack:
 
 ```bash
 make o11y-install
@@ -153,9 +181,14 @@ cd k8s/tailscale && make status
 ## Verify
 
 ```bash
+# Grafana and ClickHouse reachable on LAN
 curl -I https://grafana.example.local
+curl -I https://clickhouse.example.local   # ClickHouse HTTP play UI
 
-kubectl exec -n o11y deploy/ch-writer -- \
-  curl -s "http://clickhouse.o11y.svc.cluster.local:8123/?query=SELECT+count()+FROM+otel.otel_logs"
+# Confirm log ingestion is flowing (run after at least one OTel-instrumented workload has run)
+GRAFANA_PW=$(kubectl get secret -n o11y clickhouse-users \
+  -o jsonpath='{.data.grafana_password}' | base64 -d)
+curl -s "https://clickhouse.example.local/?user=grafana&password=${GRAFANA_PW}&query=SELECT+count()+FROM+otel.otel_logs"
 ```
+
 > **Note:** `ch-writer` is a temporary otelcol-contrib sidecar that handles the ClickHouse write path until `otelcol.exporter.clickhouse` lands natively in Alloy ([grafana/alloy#3492](https://github.com/grafana/alloy/issues/3492)). When it does: delete `ch-writer-deployment.yaml` and move the exporter block into `alloy-configmap.yaml`.

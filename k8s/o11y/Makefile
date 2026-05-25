@@ -6,6 +6,12 @@ HELM_REPOS := \
 NS         := o11y
 DOMAIN     ?= example.local
 
+# GRAFANA_CLICKHOUSE_PASSWORD is read from the clickhouse-users Secret and must be
+# exported in the shell before running `make install` so envsubst can substitute it
+# into grafana-datasources-configmap.yaml.
+# Example: export GRAFANA_CLICKHOUSE_PASSWORD=$(kubectl get secret -n o11y clickhouse-users \
+#            -o jsonpath='{.data.grafana_password}' | base64 -d)
+
 .PHONY: repos install uninstall status routes
 
 repos:
@@ -15,6 +21,8 @@ repos:
 
 install: repos
 	kubectl apply -f namespace.yaml
+	# ClickHouse users Secret must exist before ClickHouse starts (provides GRAFANA_PASSWORD + OTEL_WRITER_PASSWORD).
+	# Create it separately: kubectl apply -f manifests/clickhouse-users-secret.yaml
 	kubectl apply -f manifests/clickhouse-users-override.yaml
 	helm upgrade --install clickhouse  clickhouse/clickhouse            -n $(NS) -f values/clickhouse.yaml --version 1.0.0
 	helm upgrade --install prometheus  prometheus-community/prometheus  -n $(NS) -f values/prometheus.yaml
@@ -22,8 +30,11 @@ install: repos
 	helm upgrade --install alloy       grafana/alloy                    -n $(NS) -f values/alloy.yaml
 	kubectl apply -f manifests/ch-writer-deployment.yaml
 	kubectl apply -f manifests/alloy-dashboards-configmap.yaml
+	kubectl apply -f manifests/clickhouse-dashboards-configmap.yaml
 	helm upgrade --install grafana     grafana/grafana                  -n $(NS) -f values/grafana.yaml
-	kubectl apply -f manifests/grafana-datasources-configmap.yaml
+	DOMAIN=$(DOMAIN) GRAFANA_CLICKHOUSE_PASSWORD=$(GRAFANA_CLICKHOUSE_PASSWORD) \
+		envsubst '$${DOMAIN} $${GRAFANA_CLICKHOUSE_PASSWORD}' \
+		< manifests/grafana-datasources-configmap.yaml | kubectl apply -f -
 	kubectl apply -f manifests/reference-grants.yaml
 	DOMAIN=$(DOMAIN) envsubst '$${DOMAIN}' < manifests/gateway-routes.yaml | kubectl apply -f -
 
@@ -38,16 +49,14 @@ status:
 routes:
 	kubectl get httproute -n $(NS)
 	kubectl get httproute -n kube-system
-	kubectl describe httproute grafana    -n $(NS)
-	kubectl describe httproute hubble-ui  -n kube-system
-	kubectl describe httproute alloy-debug -n $(NS)
+	kubectl describe httproute grafana      -n $(NS)
+	kubectl describe httproute hubble-ui    -n kube-system
+	kubectl describe httproute alloy-debug  -n $(NS)
+	kubectl describe httproute clickhouse   -n $(NS)
 
-# Port-forwards for debugging — not needed in normal operation
+# Port-forwards for debugging — ClickHouse is accessible at clickhouse.${DOMAIN} via Envoy Gateway
 pf-alloy:
 	kubectl port-forward -n $(NS) ds/alloy 12345:12345
-
-pf-clickhouse:
-	kubectl port-forward -n $(NS) svc/clickhouse 8123:8123
 
 pf-grafana:
 	kubectl port-forward -n $(NS) svc/grafana 3000:3000
