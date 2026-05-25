@@ -62,7 +62,7 @@ Requires [mkcert](https://github.com/FiloSottile/mkcert) on the host. Generates 
 Add to `/etc/hosts` on your desktop:
 
 ```
-<host-ip>  example.local grafana.example.local hubble.example.local
+<host-ip>  example.local grafana.example.local hubble.example.local clickhouse.example.local
 ```
 
 ### 4. Envoy Gateway routes
@@ -153,9 +153,12 @@ cd k8s/tailscale && make status
 ## Verify
 
 ```bash
+# Grafana and ClickHouse reachable on LAN
 curl -I https://grafana.example.local
+curl -I https://clickhouse.example.local   # ClickHouse HTTP play UI
 
-kubectl exec -n o11y deploy/ch-writer -- \
-  curl -s "http://clickhouse.o11y.svc.cluster.local:8123/?query=SELECT+count()+FROM+otel.otel_logs"
+# Confirm log ingestion is flowing (run after at least one OTel-instrumented workload has run)
+curl -s "https://clickhouse.example.local/?user=grafana&query=SELECT+count()+FROM+otel.otel_logs"
 ```
+
 > **Note:** `ch-writer` is a temporary otelcol-contrib sidecar that handles the ClickHouse write path until `otelcol.exporter.clickhouse` lands natively in Alloy ([grafana/alloy#3492](https://github.com/grafana/alloy/issues/3492)). When it does: delete `ch-writer-deployment.yaml` and move the exporter block into `alloy-configmap.yaml`.

@@ -1,10 +1,21 @@
 ---
-# Overrides the pascaliske chart's default-user.xml which restricts the 'default'
-# user to localhost (127.0.0.1/::1). The 'default' user needs to be reachable from
-# other pods in the cluster (ch-writer, Grafana datasource).
+# Replaces the pascaliske chart's default-user.xml to:
+#   1. Lock the 'default' user back to localhost
+#   2. Create a 'grafana' user (read-only, no password) for the Grafana datasource
+#   3. Create an 'otel_writer' user (full access on otel.*, no password) for ch-writer
 #
-# In production you would create a dedicated user with a password instead.
-# For a LAN-only homelab, opening the default user to ::/0 is acceptable.
+# No passwords — the cluster is LAN-only; Tailscale is the auth boundary, the same
+# trust model as anonymous-admin Grafana. The user split exists to enforce permissions
+# (grafana can't write), not authentication.
+#
+# grafana  — ClickHouse's built-in 'readonly' profile restricts to SELECT only.
+#            No <databases> scope: intentional — the system dashboards (cluster/data/query
+#            analysis) need SELECT on system.* tables to function.
+#
+# otel_writer — <databases><otel/></databases> limits access to the otel database, but
+#               <profile>default</profile> gives full SQL within it (SELECT, INSERT, DDL).
+#               ch-writer only inserts, but the XML access-control model does not enforce
+#               operation-level restrictions; that would require SQL GRANT (RBAC).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,10 +25,31 @@ data:
   00-network-override.xml: |
     <clickhouse>
       <users>
+        <!-- Lock default user back to localhost — dedicated users handle all app access -->
         <default>
           <networks>
-            <ip>::/0</ip>
+            <ip>127.0.0.1</ip>
+            <ip>::1</ip>
           </networks>
         </default>
+
+        <!-- Grafana datasource: SELECT-only (readonly profile), all databases incl. system.* -->
+        <grafana>
+          <password></password>
+          <networks><ip>::/0</ip></networks>
+          <profile>readonly</profile>
+          <quota>default</quota>
+        </grafana>
+
+        <!-- ch-writer OTLP ingest: full access scoped to otel database -->
+        <otel_writer>
+          <password></password>
+          <networks><ip>::/0</ip></networks>
+          <profile>default</profile>
+          <quota>default</quota>
+          <databases>
+            <otel/>
+          </databases>
+        </otel_writer>
       </users>
     </clickhouse>

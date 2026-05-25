@@ -25,12 +25,13 @@ data:
           host: clickhouse.o11y.svc.cluster.local
           port: 9000
           protocol: native
+          username: grafana
           defaultDatabase: otel
           logs:
             defaultDatabase: otel
             defaultTable: otel_logs
             otelEnabled: true
-            otelVersion: latest
+            otelVersion: v1
           traces:
             defaultDatabase: otel
             defaultTable: otel_traces
