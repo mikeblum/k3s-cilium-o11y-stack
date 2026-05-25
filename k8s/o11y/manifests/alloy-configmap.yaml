@@ -26,7 +26,11 @@ data:
           "k8s.node.name",
           "k8s.deployment.name",
         ]
-        labels = [{ key = "app", tag_name = "service.name" }]
+        label {
+          key      = "app"
+          tag_name = "service.name"
+          from     = "pod"
+        }
       }
       output {
         metrics = [otelcol.processor.batch.default.input]
