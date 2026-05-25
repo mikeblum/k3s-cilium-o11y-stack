@@ -1,25 +1,37 @@
-replicaCount: 1   # single-node for homelab; no Keeper needed
+# pascaliske/clickhouse chart values
+# chart: https://charts.pascaliske.dev  (uses official clickhouse/clickhouse-server image)
+# Single-node — no Keeper/ZooKeeper needed for homelab use.
 
 image:
   repository: clickhouse/clickhouse-server
   tag: "25.4-alpine"
   pullPolicy: IfNotPresent
 
-auth:
-  username: default
-  password: ""
-  database: otel
+controller:
+  replicas: 1
 
-persistence:
-  enabled: true
+# ClickHouse creates CLICKHOUSE_DB on first start via the official entrypoint.
+# Default user has no password and full access — fine for LAN-only homelab.
+env:
+  - name: TZ
+    value: UTC
+  - name: CLICKHOUSE_DB
+    value: otel
+
+ports:
+  rest:
+    enabled: true
+    port: 8123   # HTTP interface (used by Grafana datasource)
+  rpc:
+    enabled: true
+    port: 9000   # Native TCP protocol (used by ch-writer + Grafana datasource)
+
+persistentVolumeClaim:
+  create: true
+  mountPath: /var/lib/clickhouse
+  accessMode: ReadWriteOnce
   size: 50Gi
-  storageClass: ""   # uses k3s default (local-path)
-
-service:
-  type: ClusterIP
-  ports:
-    http: 8123
-    native: 9000
+  storageClassName: ""   # uses k3s default (local-path)
 
 resources:
   requests:
