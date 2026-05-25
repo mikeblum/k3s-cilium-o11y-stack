@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/metric"
+	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -53,8 +55,13 @@ func main() {
 		slog.Error("failed to initialise OTel SDK", "err", err)
 		os.Exit(1)
 	}
+	// Give the OTel BatchProcessors a bounded window to flush on shutdown.
+	// context.Background() would be uncancellable — a hung OTLP gRPC connection
+	// would block the process indefinitely past Kubernetes terminationGracePeriodSeconds.
 	defer func() {
-		if err := shutdown(context.Background()); err != nil {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdown(flushCtx); err != nil {
 			slog.Error("OTel shutdown error", "err", err)
 		}
 	}()
@@ -76,6 +83,9 @@ func main() {
 	// HTTP mux — Go 1.22+ method-qualified routing:
 	//   "GET /ping" matches GET and HEAD only; other methods get 405.
 	mux := http.NewServeMux()
+
+	// /ping — the instrumented endpoint. Increments ping_total, emits a log
+	// record, and is auto-traced by otelhttp.NewHandler below.
 	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
 		pingCounter.Add(r.Context(), 1, metric.WithAttributes(
 			attribute.String("app", serviceName),
@@ -85,6 +95,12 @@ func main() {
 			slog.String("user_agent", r.UserAgent()),
 		)
 		fmt.Fprintln(w, "PONG")
+	})
+
+	// /healthz — liveness/readiness probe target. Plain 200, no instrumentation,
+	// so kubelet health checks do not inflate ping_total or otel_logs.
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 	})
 
 	// Wrap mux with otelhttp for automatic per-request spans and trace propagation.
@@ -100,15 +116,24 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Prometheus /metrics server on :2112 (only meaningful when
-	// OTEL_METRICS_EXPORTER=prometheus; harmless otherwise).
+	// Prometheus /metrics server on :2112.
+	//
+	// Why a manual server instead of letting autoexport start one?
+	// When OTEL_METRICS_EXPORTER=prometheus, autoexport creates an isolated
+	// prometheus.NewRegistry() and binds its own server on localhost — not
+	// reachable by Alloy (which scrapes via the pod IP). To keep this server
+	// illustrative AND functional we call otelprom.New() directly, which
+	// registers with prometheus.DefaultRegisterer. promhttp.Handler() then
+	// serves prometheus.DefaultGatherer — the same registry — so Alloy gets
+	// the real OTel metrics. For all other exporter values autoexport handles
+	// metrics normally and this server stays as a no-op placeholder.
 	metricsAddr := ":" + envOr("OTEL_EXPORTER_PROMETHEUS_PORT", "2112")
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("GET /metrics", promhttp.Handler())
 	metricsServer := &http.Server{
-		Addr:        metricsAddr,
-		Handler:     metricsMux,
-		ReadTimeout: 5 * time.Second,
+		Addr:         metricsAddr,
+		Handler:      metricsMux,
+		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
@@ -136,16 +161,30 @@ func main() {
 		slog.Error("server error", "err", err)
 	}
 
-	// Graceful shutdown.
+	// Graceful HTTP shutdown — log rather than discard errors so a timed-out
+	// drain is visible in pod logs rather than silently exiting 0.
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = appServer.Shutdown(shutCtx)
-	_ = metricsServer.Shutdown(shutCtx)
+	if err := appServer.Shutdown(shutCtx); err != nil {
+		slog.Error("app server shutdown error", "err", err)
+	}
+	if err := metricsServer.Shutdown(shutCtx); err != nil {
+		slog.Error("metrics server shutdown error", "err", err)
+	}
 }
 
-// setupOTelSDK initialises TracerProvider, MeterProvider, and LoggerProvider
-// using the autoexport package. Each provider's exporter/reader is selected
-// solely by OTEL_* environment variables — no hardcoded exporters.
+// setupOTelSDK initialises TracerProvider, MeterProvider, and LoggerProvider.
+//
+// Traces and logs use autoexport — the exporter is selected entirely by
+// OTEL_TRACES_EXPORTER / OTEL_LOGS_EXPORTER env vars (12-factor).
+//
+// Metrics are handled differently for the prometheus case: autoexport's
+// prometheus path creates an isolated registry and starts its own server on
+// localhost, so Alloy (which scrapes via the pod IP) would never reach it.
+// When OTEL_METRICS_EXPORTER=prometheus we call otelprom.New() directly,
+// which registers with prometheus.DefaultRegisterer — the same registry that
+// promhttp.Handler() reads, so the app's metricsServer on :2112 serves the
+// correct data. For every other value autoexport handles metrics normally.
 func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	var shutdowns []func(context.Context) error
 
@@ -176,9 +215,23 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	register(tp.Shutdown)
 
 	// ── Metrics ───────────────────────────────────────────────────────────────
-	metricReader, err := autoexport.NewMetricReader(ctx)
-	if err != nil {
-		return combined, fmt.Errorf("metric reader: %w", err)
+	var metricReader sdkmetric.Reader
+	if strings.EqualFold(envOr("OTEL_METRICS_EXPORTER", "otlp"), "prometheus") {
+		// Use the OTel prometheus exporter directly so it registers with
+		// prometheus.DefaultRegisterer. The app's metricsServer then correctly
+		// exposes these metrics via promhttp.Handler() (DefaultGatherer).
+		promExporter, err := otelprom.New()
+		if err != nil {
+			return combined, fmt.Errorf("prometheus metric exporter: %w", err)
+		}
+		metricReader = promExporter
+	} else {
+		// All other exporters (otlp, console, none) — autoexport selects based
+		// on OTEL_METRICS_EXPORTER and OTEL_EXPORTER_OTLP_* env vars.
+		metricReader, err = autoexport.NewMetricReader(ctx)
+		if err != nil {
+			return combined, fmt.Errorf("metric reader: %w", err)
+		}
 	}
 	mp := sdkmetric.NewMeterProvider(
 		sdkmetric.WithReader(metricReader),

@@ -55,13 +55,13 @@ spec:
               value: "2112"
           livenessProbe:
             httpGet:
-              path: /ping
+              path: /healthz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 15
           readinessProbe:
             httpGet:
-              path: /ping
+              path: /healthz
               port: http
             initialDelaySeconds: 3
             periodSeconds: 10
