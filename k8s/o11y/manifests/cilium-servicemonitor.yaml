@@ -1,6 +1,10 @@
-# Scrapes cilium-operator (Deployment, not per-node).
-# cilium-agent (:9962) and hubble (:9965) are scraped directly by the
-# Alloy DaemonSet via localhost targets in alloy-configmap.yaml.
+# NOT used in the default install — requires the Prometheus Operator
+# (kube-prometheus-stack), which this stack does not deploy.
+#
+# cilium-operator is instead scraped by Alloy directly in alloy-configmap.yaml.
+# cilium-agent (:9962) and hubble (:9965) are also scraped by Alloy via localhost.
+#
+# Keep this file for reference only — apply manually if you add kube-prometheus-stack.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
