@@ -1,6 +1,6 @@
-# Local O11y Stack 🔭
+# k3s-cilium-o11y-stack 🔭
 
-k3s + Cilium + Envoy Gateway + ClickHouse o11y stack.
+Single-node homelab observability template — k3s · Cilium · Envoy Gateway · Grafana · ClickHouse · Prometheus · Alloy.
 
 ```
                     ┌─────────────────────────── k3s cluster ─────────────────────────────────────┐
@@ -20,12 +20,19 @@ k3s + Cilium + Envoy Gateway + ClickHouse o11y stack.
                     └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-| URL | Network |
-|---|---|
-| `https://grafana.example.local` | LAN |
-| `https://hubble.example.local` | LAN |
-| `https://grafana.<tailnet>.ts.net` | Tailscale |
-| `https://hubble.<tailnet>.ts.net` | Tailscale |
+## Services & Routes
+
+Every service gets its own subdomain via Envoy Gateway (LAN) or the Tailscale operator (remote).
+
+| Service | LAN URL | Tailscale URL | Routing | TLS |
+|---------|---------|---------------|---------|-----|
+| **Grafana** | `https://grafana.example.local` | `https://grafana.<tailnet>.ts.net` | host-based | mkcert wildcard / Let's Encrypt |
+| **Hubble UI** | `https://hubble.example.local` | `https://hubble.<tailnet>.ts.net` | host-based | mkcert wildcard / Let's Encrypt |
+| **Alloy debug** | `https://example.local/alloy` | — LAN only | path-based | mkcert wildcard |
+
+- **LAN** — wildcard cert covers any `*.example.local` subdomain; add a single `/etc/hosts` entry per desktop pointing to the LoadBalancer IP.
+- **Tailscale** — Let's Encrypt cert auto-provisioned by the Tailscale operator; no hosts-file changes, works anywhere on your tailnet.
+- **Adding a service** — see [Adding a service](#adding-a-service) for the HTTPRoute + optional Tailscale Ingress pattern.
 
 ---
 
@@ -131,14 +138,14 @@ prometheus-server    1/1  Running
 
 ### 6. Tailscale
 
-The admin console steps must be done **before** running `make install` — the OAuth client requires the tags to exist in the ACL first.
+> **Complete the admin console steps before running `make install`** — the OAuth client requires the tags to exist in the ACL first.
 
 **6a. Tailscale admin console** (one-time, in this order)
 
-1. **Settings → DNS** → enable MagicDNS and HTTPS
+1. **Settings → DNS** → enable MagicDNS and HTTPS.
 
-2. **Access Controls** → merge `k8s/tailscale/acl-snippet.json` into your tailnet ACL.
-   At minimum you need the `tagOwners` block (required before you can create an OAuth client with these tags) and the `acls` rule:
+2. **Access Controls** → merge the following blocks into your tailnet ACL
+   (see `k8s/tailscale/acl-snippet.json` for the full ready-to-paste snippet):
 
    ```json
    "tagOwners": {
@@ -147,14 +154,14 @@ The admin console steps must be done **before** running `make install` — the O
    },
    "acls": [
      { "action": "accept", "src": ["autogroup:members"], "dst": ["tag:k8s-ingress:*"] }
+   ],
+   "nodeAttrs": [
+     { "target": ["tag:k8s-ingress", "tag:k8s-operator"], "attr": ["noExpiry"] }
    ]
    ```
 
-   Also add `noExpiry` so proxy pods don't go offline when key rotation hits:
-
-   ```json
-   "nodeAttrs": [{ "target": ["tag:k8s-ingress", "tag:k8s-operator"], "attr": ["noExpiry"] }]
-   ```
+   `tagOwners` must exist before you can create an OAuth client with these tags.
+   `noExpiry` prevents proxy pods from going offline when key rotation hits.
 
 3. **Settings → OAuth clients** → create a client with:
    - Scopes: Devices → Core / Auth Keys / Services → **Write**
@@ -163,14 +170,17 @@ The admin console steps must be done **before** running `make install` — the O
 
 **6b. Install the operator**
 
+> **Cilium compatibility:** `make install` automatically annotates the `tailscale` namespace
+> with `io.cilium/no-track-port="0"` after Helm creates it. This is required when Cilium
+> runs in kube-proxy replacement mode — without it, Cilium's eBPF connection tracking
+> intercepts proxy pod traffic and connections hang indefinitely.
+
 ```bash
 cd k8s/tailscale
 cp values.secret.yaml.example values.secret.yaml
 # fill in clientId + clientSecret from step 6a
 make install
 ```
-
-> `make install` automatically annotates the `tailscale` namespace with `io.cilium/no-track-port="0"` after Helm creates it. This is required when Cilium runs in kube-proxy replacement mode — without it, Cilium's eBPF connection tracking intercepts proxy pod traffic and connections hang.
 
 Verify proxy pods come up (one per Ingress):
 

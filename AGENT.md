@@ -228,16 +228,20 @@ kubectl get gateway cluster-ingress -n envoy-gateway-system \
 
 ### 9 — Tailscale (optional, manual)
 
-Requires human interaction (OAuth credentials from Tailscale admin console).
+Requires human interaction — OAuth credentials must be obtained from the Tailscale admin
+console before running `make install`. The admin console steps (enable MagicDNS, update
+ACL, create OAuth client) are documented in `README.md` § Tailscale and **must be done
+first**.
 
 ```bash
 cd k8s/tailscale
 cp values.secret.yaml.example values.secret.yaml
-# edit values.secret.yaml: fill in clientId + clientSecret
-make install TAILSCALE_TAILNET=my-operator-name
+# edit values.secret.yaml: fill in clientId + clientSecret from README § Tailscale 6a
+make install
 ```
 
-See `README.md` § Tailscale for the full admin console setup steps.
+**Success:** proxy pods appear in `make status` (one per Ingress — grafana, hubble).
+May take 30–60 s on first run while Let's Encrypt certs are issued.
 
 ---
 
@@ -294,8 +298,4 @@ LB=$(kubectl get gateway cluster-ingress -n envoy-gateway-system \
 curl -skL -H "Host: grafana.$(hostname | sed 's/[^.]*\.//')" https://$LB \
   -o /dev/null -w "%{http_code}\n"
 # Expected: 200
-
-# 5. No roguequery references
-git grep -i roguequery
-# Expected: no output
 ```
