@@ -92,39 +92,15 @@ Every service gets its own subdomain via Envoy Gateway (LAN) or the Tailscale op
 | [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse |
 | [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS |
 
-- **Adding a service** — see [Adding a service](#adding-a-service) for the HTTPRoute + optional Tailscale Ingress pattern.
+- **Adding a service** — see [apps/README.md](./apps/README.md) for the three-step guide (OTLP env vars, Alloy scrape target, HTTPRoute).
 
 ---
 
-## Adding a service
+## Apps & example workloads
 
-Exposing a custom service in your cluster is a simple process:
-
-**1.** Set OTLP env vars in your pod spec:
-
-```yaml
-env:
-  - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: "http://alloy.o11y.svc.cluster.local:4317"
-  - name: OTEL_SERVICE_NAME
-    value: "myapp"
-```
-
-**2.** Add a scrape target to `k8s/o11y/manifests/alloy-configmap.yaml`:
-
-```hcl
-prometheus.scrape "go_services" {
-  targets         = [{ __address__ = "myapp.myapp.svc.cluster.local:2112" }]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.local.receiver]
-}
-```
-
-```bash
-kubectl apply -f k8s/o11y/manifests/alloy-configmap.yaml  # hot-reloads, no restart
-```
-
-**3.** Add an HTTPRoute (LAN) and Tailscale Ingress — see `k8s/tailscale/manifests/ingress-grafana.yaml` and `k8s/o11y/manifests/gateway-routes.yaml` for examples.
+See **[apps/README.md](./apps/README.md)** for:
+- Step-by-step instructions for integrating any OTel-instrumented service
+- The `otel-go` reference app — a minimal Go HTTP service (`/ping → PONG`) that exercises traces, logs, and Prometheus metrics end-to-end
 
 ---
 
