@@ -100,7 +100,7 @@ cilium-status:
 tls-install:
 	@$(MAKE) -C k8s/tls install DOMAIN=$(DOMAIN)
 	@echo ""
-	@echo "Next: make gateway-apply DOMAIN=$(DOMAIN)"
+	@echo "Next: make gateway-apply"
 
 tls-check-expiry:
 	@$(MAKE) -C k8s/tls check-expiry DOMAIN=$(DOMAIN)
