@@ -43,7 +43,7 @@ Tools required on the host before bootstrapping:
 
 Check all at once:
 ```bash
-make prereqs
+make setup
 ```
 
 ---
