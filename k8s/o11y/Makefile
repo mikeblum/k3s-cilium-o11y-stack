@@ -43,10 +43,3 @@ routes:
 	kubectl describe httproute hubble-ui    -n kube-system
 	kubectl describe httproute alloy-debug  -n $(NS)
 	kubectl describe httproute clickhouse   -n $(NS)
-
-# Port-forwards for debugging — ClickHouse is accessible at clickhouse.${DOMAIN} via Envoy Gateway
-pf-alloy:
-	kubectl port-forward -n $(NS) ds/alloy 12345:12345
-
-pf-grafana:
-	kubectl port-forward -n $(NS) svc/grafana 3000:3000
