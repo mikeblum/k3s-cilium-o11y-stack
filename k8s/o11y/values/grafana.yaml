@@ -42,10 +42,55 @@ dashboardProviders:
       - name: cilium
         folder: Cilium
         type: file
+        disableDeletion: false
+        allowUiUpdates: true   # allow saving tweaks to provisioned dashboards in this homelab
         options:
           path: /var/lib/grafana/dashboards/cilium
       - name: otel
         folder: OTel
         type: file
+        disableDeletion: false
+        allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/otel
+
+# Dashboards downloaded at pod startup by the download-dashboards init container.
+# Top-level key must match a provider name above; each entry maps to one JSON file
+# at /var/lib/grafana/dashboards/<provider>/<key>.json.
+#
+# OTel traces/logs dashboards (ClickHouse-backed) are bundled in the plugin and
+# are NOT on grafana.com — import them via:
+#   Connections → Data Sources → ClickHouse → Dashboards tab → Import
+dashboards:
+  cilium:
+    # Cilium 1.12 dashboards — metric names are stable through 1.17.
+    # Published by Isovalent: https://grafana.com/orgs/isovalent/dashboards
+    agent-metrics:
+      gnetId: 16611         # Cilium v1.12 Agent Metrics
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus
+    operator-metrics:
+      gnetId: 16612         # Cilium v1.12 Operator Metrics
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus
+    hubble-metrics:
+      gnetId: 16613         # Cilium v1.12 Hubble Metrics
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus
+    policy-verdicts:
+      gnetId: 18015         # Cilium Policy Verdicts (version-agnostic)
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus
+
+  otel:
+    # OTel Collector pipeline health — uses Prometheus, not ClickHouse.
+    # For trace/log dashboards backed by ClickHouse see the note above.
+    otel-collector:
+      gnetId: 15983         # OpenTelemetry Collector
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus
