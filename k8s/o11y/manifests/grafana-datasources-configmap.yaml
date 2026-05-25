@@ -31,7 +31,7 @@ data:
             defaultDatabase: otel
             defaultTable: otel_logs
             otelEnabled: true
-            otelVersion: latest
+            otelVersion: v1
           traces:
             defaultDatabase: otel
             defaultTable: otel_traces

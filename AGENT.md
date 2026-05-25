@@ -5,6 +5,16 @@ stack autonomously on a fresh Linux host. Read it top to bottom; do not skip ste
 
 ---
 
+## General guidelines
+
+- **Always pin versions — never use `latest` tags.** Every image tag, Helm chart version, and
+  plugin version must be an explicit stable release (e.g. `25.4-alpine`, `4.17.0`, `1.0.0`).
+  Using `latest` makes deployments non-reproducible and breaks on silent upstream changes.
+- When bumping a pinned version, update the value in the relevant `values/*.yaml` or manifest,
+  verify the changelog for breaking changes, and test before committing.
+
+---
+
 ## What this stack is
 
 Single-node k3s cluster running:
