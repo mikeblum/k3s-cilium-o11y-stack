@@ -14,5 +14,4 @@ operatorConfig:
   hostname: ${TAILSCALE_TAILNET}   # appears in tailnet Machines list — set via TAILSCALE_TAILNET make var
 
 proxyConfig:
-  defaultTags:
-    - tag:k8s-ingress             # applied to all ingress proxy nodes
+  defaultTags: "tag:k8s-ingress"  # applied to all ingress proxy nodes (comma-separated string, not list)

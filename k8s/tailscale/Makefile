@@ -17,6 +17,7 @@ install: repo
 		--values /dev/stdin \
 		--values values.secret.yaml \
 		--wait
+	kubectl annotate namespace $(NS) io.cilium/no-track-port="0" --overwrite
 	kubectl apply -f manifests/
 
 uninstall:
