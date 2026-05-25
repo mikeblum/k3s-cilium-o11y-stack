@@ -17,11 +17,14 @@ install: repos
 	kubectl apply -f namespace.yaml
 	kubectl apply -f manifests/clickhouse-users-override.yaml
 	helm upgrade --install clickhouse  clickhouse/clickhouse            -n $(NS) -f values/clickhouse.yaml --version 1.0.0
+	kubectl rollout restart -n $(NS) statefulset/clickhouse
+	kubectl rollout status  -n $(NS) statefulset/clickhouse --timeout=120s
 	helm upgrade --install prometheus  prometheus-community/prometheus  -n $(NS) -f values/prometheus.yaml
 	kubectl apply -f manifests/alloy-configmap.yaml
 	helm upgrade --install alloy       grafana/alloy                    -n $(NS) -f values/alloy.yaml
 	kubectl apply -f manifests/ch-writer-deployment.yaml
 	kubectl apply -f manifests/alloy-dashboards-configmap.yaml
+	kubectl apply -f manifests/clickhouse-dashboards-configmap.yaml
 	helm upgrade --install grafana     grafana/grafana                  -n $(NS) -f values/grafana.yaml
 	kubectl apply -f manifests/grafana-datasources-configmap.yaml
 	kubectl apply -f manifests/reference-grants.yaml
@@ -38,16 +41,7 @@ status:
 routes:
 	kubectl get httproute -n $(NS)
 	kubectl get httproute -n kube-system
-	kubectl describe httproute grafana    -n $(NS)
-	kubectl describe httproute hubble-ui  -n kube-system
-	kubectl describe httproute alloy-debug -n $(NS)
-
-# Port-forwards for debugging — not needed in normal operation
-pf-alloy:
-	kubectl port-forward -n $(NS) ds/alloy 12345:12345
-
-pf-clickhouse:
-	kubectl port-forward -n $(NS) svc/clickhouse 8123:8123
-
-pf-grafana:
-	kubectl port-forward -n $(NS) svc/grafana 3000:3000
+	kubectl describe httproute grafana      -n $(NS)
+	kubectl describe httproute hubble-ui    -n kube-system
+	kubectl describe httproute alloy-debug  -n $(NS)
+	kubectl describe httproute clickhouse   -n $(NS)

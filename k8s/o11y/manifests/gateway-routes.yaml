@@ -6,6 +6,7 @@
 # LAN access requires /etc/hosts on your desktop:
 #   <host-ip>  grafana.${DOMAIN}
 #   <host-ip>  hubble.${DOMAIN}
+#   <host-ip>  clickhouse.${DOMAIN}
 #
 # Tailscale access (no hosts file, Let's Encrypt TLS, works anywhere):
 #   https://grafana.<tailnet>.ts.net
@@ -107,3 +108,30 @@ spec:
       backendRefs:
         - name: alloy
           port: 12345
+
+---
+# ClickHouse HTTP interface — host-based, HTTPS.
+# Exposes the ClickHouse HTTP API (port 8123) including the built-in Play UI.
+# LAN: add clickhouse.${DOMAIN} to /etc/hosts on your desktop.
+# Tailscale: see k8s/tailscale/manifests/ingress-clickhouse.yaml
+# TablePlus: Host=clickhouse.${DOMAIN}  Port=443  Protocol=HTTPS  DB=otel  User=grafana
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: clickhouse
+  namespace: o11y
+spec:
+  parentRefs:
+    - name: cluster-ingress
+      namespace: envoy-gateway-system
+      sectionName: https
+  hostnames:
+    - clickhouse.${DOMAIN}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: clickhouse
+          port: 8123
