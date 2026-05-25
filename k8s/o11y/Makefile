@@ -21,6 +21,7 @@ install: repos
 	kubectl apply -f manifests/alloy-configmap.yaml
 	helm upgrade --install alloy       grafana/alloy                    -n $(NS) -f values/alloy.yaml
 	kubectl apply -f manifests/ch-writer-deployment.yaml
+	kubectl apply -f manifests/alloy-dashboards-configmap.yaml
 	helm upgrade --install grafana     grafana/grafana                  -n $(NS) -f values/grafana.yaml
 	kubectl apply -f manifests/grafana-datasources-configmap.yaml
 	kubectl apply -f manifests/reference-grants.yaml
