@@ -1,10 +1,25 @@
 # Grafana 13.0.1 — Grafana 13 stable (security-patched)
-# Served at / — host-based routing via Envoy (grafana.<domain>)
-# and Tailscale Ingress (grafana.<tailnet>.ts.net).
-# No GF_SERVER_ROOT_URL or GF_SERVER_SERVE_FROM_SUB_PATH needed.
+#
+# Auth: login form disabled; anonymous access granted as Admin.
+# Tailscale membership is the auth boundary — only tailnet members can
+# reach this instance, so a second login prompt adds friction with no
+# security benefit.
 
 image:
   tag: "13.0.1"
+
+grafana.ini:
+  analytics:
+    check_for_updates: false      # avoid outbound call on every load; this is an air-gapped homelab
+    check_for_plugin_updates: false
+    reporting_enabled: false
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer              # Grafana 13: Admin is no longer supported for anonymous; use auto_assign_org_role below
+  users:
+    auto_assign_org_role: Admin   # all users (including anonymous) get Admin role in the default org
+  auth:
+    disable_login_form: true      # Tailscale is the auth boundary; no second login needed
 
 plugins:
   - grafana-clickhouse-datasource
@@ -16,6 +31,9 @@ sidecar:
 persistence:
   enabled: true
   size: 5Gi
+
+initChownData:
+  enabled: false  # PVC already owned by uid 472 from initial install; chown fails on re-deploy
 
 dashboardProviders:
   dashboardproviders.yaml:
