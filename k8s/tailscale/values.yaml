@@ -1,0 +1,18 @@
+# Tailscale Kubernetes Operator — committed values (no secrets)
+# OAuth credentials come from values.secret.yaml (gitignored).
+#
+# Prerequisites (Tailscale admin console):
+#   1. Settings → DNS → enable MagicDNS and HTTPS
+#   2. Settings → OAuth clients → create client with scopes:
+#        Devices → Core     → Write
+#        Devices → Auth Keys → Write
+#        Devices → Services  → Write
+#      Tag: tag:k8s-operator
+#   3. Update ACL — see acl-snippet.json
+
+operatorConfig:
+  hostname: ${TAILSCALE_TAILNET}   # appears in tailnet Machines list — set via TAILSCALE_TAILNET make var
+
+proxyConfig:
+  defaultTags:
+    - tag:k8s-ingress             # applied to all ingress proxy nodes

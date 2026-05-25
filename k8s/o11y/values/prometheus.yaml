@@ -1,0 +1,22 @@
+server:
+  retention: 90d
+  persistentVolume:
+    enabled: true
+    size: 20Gi
+
+  extraFlags:
+    - web.enable-remote-write-receiver  # Alloy pushes Cilium + scraped metrics here
+    - web.enable-lifecycle
+
+serviceMonitorSelector:
+  matchLabels:
+    release: prometheus
+
+# Alloy handles all scraping — disable Prometheus's own scrapers
+# to avoid double-counting Cilium metrics
+kubeStateMetrics:
+  enabled: false
+nodeExporter:
+  enabled: false
+alertmanager:
+  enabled: false

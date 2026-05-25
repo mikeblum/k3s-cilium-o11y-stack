@@ -1,0 +1,26 @@
+# Exposes Hubble UI to your tailnet at https://hubble.<tailnet>.ts.net
+#
+# Tailscale Ingress is always host-based (served at /), which matches how
+# the Hubble UI SPA expects to be served — no subpath issues.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hubble-ts
+  namespace: kube-system
+  annotations:
+    tailscale.com/tags: "tag:k8s-ingress"
+spec:
+  ingressClassName: tailscale
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hubble-ui
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - hubble
