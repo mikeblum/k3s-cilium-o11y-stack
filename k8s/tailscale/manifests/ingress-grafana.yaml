@@ -1,0 +1,29 @@
+# Exposes Grafana to your tailnet at https://grafana.<tailnet>.ts.net
+#
+# The operator provisions a Tailscale proxy node and a Let's Encrypt certificate
+# automatically. First connection may take 30-60s while the cert is issued.
+#
+# tls.hosts[0] first label sets the MagicDNS hostname:
+#   "grafana" → grafana.<tailnet-name>.ts.net
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ts
+  namespace: o11y
+  annotations:
+    tailscale.com/tags: "tag:k8s-ingress"
+spec:
+  ingressClassName: tailscale
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - grafana

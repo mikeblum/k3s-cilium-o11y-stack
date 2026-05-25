@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# k3s install for Cilium CNI + kube-proxy replacement
+# !! Run as root before installing Cilium.
+#
+# Disables k3s defaults: flannel, network-policy, kube-proxy, traefik, servicelb
+# Cilium handles all of the above via eBPF + Envoy.
+
+NODE_IP="${NODE_IP:?NODE_IP not set. run make ip}"
+
+echo "Installing k3s with NODE_IP=${NODE_IP}"
+
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+  --node-ip=${NODE_IP} \
+  --flannel-backend=none \
+  --disable-network-policy \
+  --disable-kube-proxy \
+  --disable=traefik \
+  --disable=servicelb \
+  --disable=metrics-server \
+  --write-kubeconfig-mode=644 \
+  --kube-apiserver-arg=feature-gates=GatewayAPI=true" sh -
+
+echo "Waiting for k3s API to be ready..."
+until kubectl get nodes &>/dev/null; do sleep 2; done
+
+echo "k3s ready. Node status:"
+kubectl get nodes -o wide
+
+echo ""
+echo "Next: run infra/cilium/install.sh with NODE_IP=${NODE_IP}"

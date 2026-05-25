@@ -1,0 +1,47 @@
+# Alloy v1.16.1 — pinned 2026-05-05
+# Bump after reviewing release notes: https://grafana.com/docs/alloy/latest/release-notes/
+# Note: otelcol.exporter.clickhouse is NOT yet a native Alloy component (issue #3492).
+# Until it lands, ch-writer handles the ClickHouse write path.
+# When it lands: delete ch-writer-deployment.yaml and move the exporter block into alloy-configmap.yaml.
+
+alloy:
+  image:
+    registry: docker.io
+    repository: grafana/alloy
+    tag: v1.16.1
+    pullPolicy: IfNotPresent
+
+  configMap:
+    create: false    # managed separately via alloy-configmap.yaml
+    name: alloy-config
+
+  rbac:
+    create: true     # needs cluster-level access for k8sattributes processor
+
+  serviceAccount:
+    create: true
+
+  controller:
+    type: daemonset  # one pod per node so cilium-agent :9962 is reachable via localhost
+
+  service:
+    enabled: true
+    type: ClusterIP
+
+  extraPorts:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m

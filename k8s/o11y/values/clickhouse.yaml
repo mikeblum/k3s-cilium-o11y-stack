@@ -1,0 +1,30 @@
+replicaCount: 1   # single-node for homelab; no Keeper needed
+
+image:
+  repository: clickhouse/clickhouse-server
+  tag: "25.4-alpine"
+  pullPolicy: IfNotPresent
+
+auth:
+  username: default
+  password: ""
+  database: otel
+
+persistence:
+  enabled: true
+  size: 50Gi
+  storageClass: ""   # uses k3s default (local-path)
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8123
+    native: 9000
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 4Gi
+    cpu: 2
