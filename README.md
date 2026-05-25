@@ -36,7 +36,7 @@ Tools required on the host before bootstrapping:
 | Tool | Install |
 |------|---------|
 | `helm` | `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \| bash` |
-| `mkcert` | `apt install mkcert` or [GitHub releases](https://github.com/FiloSottile/mkcert/releases) |
+| `mkcert` | `sudo apt install mkcert` |
 | `envsubst` | `sudo apt install gettext` |
 
 `kubectl` is provided by k3s (`/usr/local/bin/kubectl` → `k3s`). Run after `make k3s-install`.
