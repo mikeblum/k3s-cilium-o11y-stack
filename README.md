@@ -70,6 +70,7 @@ Every service gets its own subdomain via Envoy Gateway (LAN) or the Tailscale op
 |---------|---------|---------------|---------|-----|
 | **Grafana** | `https://grafana.example.local` | `https://grafana.<tailnet>.ts.net` | host-based | mkcert wildcard / Let's Encrypt |
 | **Hubble UI** | `https://hubble.example.local` | `https://hubble.<tailnet>.ts.net` | host-based | mkcert wildcard / Let's Encrypt |
+| **ClickHouse** | `https://clickhouse.example.local` | `https://clickhouse.<tailnet>.ts.net` | host-based | mkcert wildcard / Let's Encrypt |
 | **Alloy** | `https://example.local/alloy` | — LAN only | path-based | mkcert wildcard |
 
 **Tailscale** — the Tailscale operator exposes your k8s service to anywhere on your tailnet.
