@@ -6,8 +6,12 @@ NODE_IP   ?= $(shell $(_IP_CMD))
 # /26 allocates 62 addresses
 NODE_CIDR  ?= $(NODE_IP)/26
 
-DOMAIN                 ?= example.local
-TLS_SECRET             := $(subst .,-,$(DOMAIN))-tls
+# Auto-detect domain from the hostname: 'k8s.mylab.local' → 'mylab.local'
+# Falls back to example.local if the hostname has no dot (e.g. bare 'myhost').
+# Override: make tls-install DOMAIN=mylab.local
+_DOMAIN_CMD = h=$$(hostname); d=$$(echo "$$h" | cut -d. -f2-); [ "$$d" != "$$h" ] && echo "$$d" || echo "example.local"
+DOMAIN      ?= $(shell $(_DOMAIN_CMD))
+TLS_SECRET  := $(subst .,-,$(DOMAIN))-tls
 ENVOY_GATEWAY_VERSION  ?= v1.8.0
 
 export KUBECONFIG
