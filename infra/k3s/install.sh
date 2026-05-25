@@ -28,4 +28,6 @@ echo "k3s ready. Node status:"
 kubectl get nodes -o wide
 
 echo ""
-echo "Next: run infra/cilium/install.sh with NODE_IP=${NODE_IP}"
+echo "Next steps (from repo root):"
+echo "  make cilium-install"
+echo "  make cilium-lb NODE_CIDR=${NODE_IP%.*}.192/26   # adjust to a free /26 on your LAN"
