@@ -37,22 +37,25 @@ spec:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment=${DOMAIN},service.version=${TAG}"
             # ── Exporter selection (12-factor; swap without rebuild) ───────────
-            # Traces and logs go to Alloy via OTLP gRPC → ch-writer → ClickHouse.
-            # Metrics are exposed as a Prometheus endpoint scraped by Alloy.
+            # Traces and logs: OTLP gRPC → Alloy → ch-writer → ClickHouse.
             - name: OTEL_TRACES_EXPORTER
               value: otlp
-            - name: OTEL_METRICS_EXPORTER
-              value: prometheus
             - name: OTEL_LOGS_EXPORTER
               value: otlp
+            # Metrics: OTEL_METRICS_EXPORTER is intentionally unset.
+            # The app's WithFallbackMetricReader uses otelprom.New() (DefaultRegisterer),
+            # so promhttp.Handler() on :2112 serves the real OTel metrics to Alloy.
+            # To override: set OTEL_METRICS_EXPORTER=otlp|console|none — autoexport
+            # handles it; the :2112 metricsServer becomes a no-op placeholder.
+            # Do NOT set OTEL_METRICS_EXPORTER=prometheus — that triggers autoexport's
+            # built-in factory which uses an isolated registry + localhost-only server.
+            - name: OTEL_EXPORTER_PROMETHEUS_PORT
+              value: "2112"
             # ── OTLP endpoint (traces + logs) ──────────────────────────────────
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://alloy.o11y.svc.cluster.local:4317
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: grpc
-            # ── Prometheus exporter port ───────────────────────────────────────
-            - name: OTEL_EXPORTER_PROMETHEUS_PORT
-              value: "2112"
           livenessProbe:
             httpGet:
               path: /healthz

@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -174,17 +173,16 @@ func main() {
 }
 
 // setupOTelSDK initialises TracerProvider, MeterProvider, and LoggerProvider.
+// All exporters are configured via OTEL_* environment variables (12-factor).
 //
-// Traces and logs use autoexport — the exporter is selected entirely by
-// OTEL_TRACES_EXPORTER / OTEL_LOGS_EXPORTER env vars (12-factor).
+// Traces and logs: autoexport selects the exporter from OTEL_TRACES_EXPORTER /
+// OTEL_LOGS_EXPORTER (default: otlp).
 //
-// Metrics are handled differently for the prometheus case: autoexport's
-// prometheus path creates an isolated registry and starts its own server on
-// localhost, so Alloy (which scrapes via the pod IP) would never reach it.
-// When OTEL_METRICS_EXPORTER=prometheus we call otelprom.New() directly,
-// which registers with prometheus.DefaultRegisterer — the same registry that
-// promhttp.Handler() reads, so the app's metricsServer on :2112 serves the
-// correct data. For every other value autoexport handles metrics normally.
+// Metrics: WithFallbackMetricReader registers otelprom.New() as the default when
+// OTEL_METRICS_EXPORTER is unset. otelprom.New() uses prometheus.DefaultRegisterer,
+// so the app's metricsServer (promhttp.Handler / DefaultGatherer) serves the real
+// OTel metrics to Alloy. When OTEL_METRICS_EXPORTER is explicitly set, autoexport
+// handles it normally — see the deployment.yaml comment for the one exception.
 func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	var shutdowns []func(context.Context) error
 
@@ -215,23 +213,24 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	register(tp.Shutdown)
 
 	// ── Metrics ───────────────────────────────────────────────────────────────
-	var metricReader sdkmetric.Reader
-	if strings.EqualFold(envOr("OTEL_METRICS_EXPORTER", "otlp"), "prometheus") {
-		// Use the OTel prometheus exporter directly so it registers with
-		// prometheus.DefaultRegisterer. The app's metricsServer then correctly
-		// exposes these metrics via promhttp.Handler() (DefaultGatherer).
-		promExporter, err := otelprom.New()
-		if err != nil {
-			return combined, fmt.Errorf("prometheus metric exporter: %w", err)
-		}
-		metricReader = promExporter
-	} else {
-		// All other exporters (otlp, console, none) — autoexport selects based
-		// on OTEL_METRICS_EXPORTER and OTEL_EXPORTER_OTLP_* env vars.
-		metricReader, err = autoexport.NewMetricReader(ctx)
-		if err != nil {
-			return combined, fmt.Errorf("metric reader: %w", err)
-		}
+	// Default (OTEL_METRICS_EXPORTER unset): WithFallbackMetricReader fires and
+	// calls otelprom.New(), which registers with prometheus.DefaultRegisterer.
+	// promhttp.Handler() (DefaultGatherer) in the app's metricsServer then
+	// correctly serves all OTel metrics including ping_total.
+	//
+	// If OTEL_METRICS_EXPORTER is explicitly set (otlp, console, none), autoexport
+	// handles it and the metricsServer on :2112 becomes a harmless no-op.
+	//
+	// Do NOT set OTEL_METRICS_EXPORTER=prometheus: autoexport's built-in prometheus
+	// factory creates an isolated registry + starts its own server on localhost —
+	// neither connected to promhttp.Handler() nor reachable by Alloy.
+	metricReader, err := autoexport.NewMetricReader(ctx,
+		autoexport.WithFallbackMetricReader(func(ctx context.Context) (sdkmetric.Reader, error) {
+			return otelprom.New()
+		}),
+	)
+	if err != nil {
+		return combined, fmt.Errorf("metric reader: %w", err)
 	}
 	mp := sdkmetric.NewMeterProvider(
 		sdkmetric.WithReader(metricReader),
