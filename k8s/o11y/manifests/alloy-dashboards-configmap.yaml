@@ -1,0 +1,3318 @@
+apiVersion: v1
+data:
+  alloy-controller.json: |
+    {
+       "annotations": {
+          "list": [
+             {
+                "datasource": "$loki_datasource",
+                "enable": true,
+                "expr": "{cluster=~\"$cluster\", container=\"kube-diff-logger\"} | json | namespace_extracted=\"alloy\" | name_extracted=~\"alloy.*\"",
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "instant": false,
+                "name": "Deployments",
+                "titleFormat": "{{cluster}}/{{namespace}}"
+             }
+          ]
+       },
+       "graphTooltip": 1,
+       "links": [
+          {
+             "icon": "doc",
+             "targetBlank": true,
+             "title": "Documentation",
+             "tooltip": "Component controller documentation",
+             "type": "link",
+             "url": "https://grafana.com/docs/alloy/latest/concepts/component_controller/"
+          },
+          {
+             "asDropdown": true,
+             "icon": "external link",
+             "includeVars": true,
+             "keepTime": true,
+             "tags": [
+                "alloy-mixin"
+             ],
+             "targetBlank": false,
+             "title": "Dashboards",
+             "type": "dashboards"
+          }
+       ],
+       "panels": [
+          {
+             "datasource": "${datasource}",
+             "description": "The number of Alloy instances whose metrics are being sent and reported.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "instances"
+                }
+             },
+             "gridPos": {
+                "h": 4,
+                "w": 10,
+                "x": 0,
+                "y": 0
+             },
+             "options": {
+                "colorMode": "none",
+                "graphMode": "none"
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "count(group(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}) by (instance))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Running instances",
+             "type": "stat"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The number of running components across all running instances.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "components"
+                }
+             },
+             "gridPos": {
+                "h": 4,
+                "w": 10,
+                "x": 0,
+                "y": 4
+             },
+             "options": {
+                "colorMode": "none",
+                "graphMode": "none"
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"})\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Running components",
+             "type": "stat"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The percentage of components which are in a healthy state.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "max": 1,
+                   "min": 0,
+                   "noValue": "No components",
+                   "unit": "percentunit"
+                }
+             },
+             "gridPos": {
+                "h": 4,
+                "w": 10,
+                "x": 0,
+                "y": 8
+             },
+             "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "text": {
+                   "valueSize": 80
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\",health_type=\"healthy\"}) /\nsum(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"})\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Overall component health",
+             "type": "stat"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Breakdown of components by health across all running instances.\n\n* Healthy: components have been evaluated completely and are reporting themselves as healthy.\n* Unhealthy: Components either could not be evaluated or are reporting themselves as unhealthy.\n* Unknown: A component has been created but has not yet been started.\n* Exited: A component has exited. It will not return to the running state.\n\nMore information on a component's health state can be retrieved using\nthe Alloy UI.\n\nNote that components may be in a degraded state even if they report\nthemselves as healthy. Use component-specific dashboards and alerts\nto observe detailed information about the behavior of a component.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "min": 0,
+                   "thresholds": {
+                      "mode": "absolute",
+                      "steps": [
+                         {
+                            "color": "green",
+                            "value": null
+                         }
+                      ]
+                   }
+                },
+                "overrides": [
+                   {
+                      "matcher": {
+                         "id": "byName",
+                         "options": "Unhealthy"
+                      },
+                      "properties": [
+                         {
+                            "id": "thresholds",
+                            "value": {
+                               "mode": "absolute",
+                               "steps": [
+                                  {
+                                     "color": "green",
+                                     "value": null
+                                  },
+                                  {
+                                     "color": "red",
+                                     "value": 1
+                                  }
+                               ]
+                            }
+                         }
+                      ]
+                   },
+                   {
+                      "matcher": {
+                         "id": "byName",
+                         "options": "Unknown"
+                      },
+                      "properties": [
+                         {
+                            "id": "thresholds",
+                            "value": {
+                               "mode": "absolute",
+                               "steps": [
+                                  {
+                                     "color": "green",
+                                     "value": null
+                                  },
+                                  {
+                                     "color": "blue",
+                                     "value": 1
+                                  }
+                               ]
+                            }
+                         }
+                      ]
+                   },
+                   {
+                      "matcher": {
+                         "id": "byName",
+                         "options": "Exited"
+                      },
+                      "properties": [
+                         {
+                            "id": "thresholds",
+                            "value": {
+                               "mode": "absolute",
+                               "steps": [
+                                  {
+                                     "color": "green",
+                                     "value": null
+                                  },
+                                  {
+                                     "color": "orange",
+                                     "value": 1
+                                  }
+                               ]
+                            }
+                         }
+                      ]
+                   }
+                ]
+             },
+             "gridPos": {
+                "h": 12,
+                "w": 14,
+                "x": 10,
+                "y": 0
+             },
+             "options": {
+                "orientation": "vertical",
+                "showUnfilled": true
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", health_type=\"healthy\"}) or vector(0)\n",
+                   "instant": true,
+                   "legendFormat": "Healthy",
+                   "range": false
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", health_type=\"unhealthy\"}) or vector(0)\n",
+                   "instant": true,
+                   "legendFormat": "Unhealthy",
+                   "range": false
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", health_type=\"unknown\"}) or vector(0)\n",
+                   "instant": true,
+                   "legendFormat": "Unknown",
+                   "range": false
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", health_type=\"exited\"}) or vector(0)\n",
+                   "instant": true,
+                   "legendFormat": "Exited",
+                   "range": false
+                }
+             ],
+             "title": "Components by health",
+             "type": "bargauge"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The frequency at which components get updated.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "drawStyle": "points",
+                      "pointSize": 3
+                   },
+                   "unit": "ops"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 0,
+                "y": 12
+             },
+             "options": {
+                "tooltip": {
+                   "mode": "multi"
+                }
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by (${groupby}) (rate(alloy_component_evaluation_seconds_count{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Component evaluation rate",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The percentiles for how long it takes to complete component evaluations.\n\nComponent evaluations must complete for components to have the latest\narguments. The longer the evaluations take, the slower it will be to\nreconcile the state of components.\n\nIf evaluation is taking too long, consider sharding your components to\ndeal with smaller amounts of data and reuse data as much as possible.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "s"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 8,
+                "y": 12
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "histogram_quantile(0.99, sum(rate(alloy_component_evaluation_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])))\nor\nhistogram_quantile(0.99, sum by (le) (rate(alloy_component_evaluation_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])))\n",
+                   "instant": false,
+                   "legendFormat": "99th percentile",
+                   "range": true
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "histogram_quantile(0.50, sum(rate(alloy_component_evaluation_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])))\nor\nhistogram_quantile(0.50, sum by (le) (rate(alloy_component_evaluation_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])))\n",
+                   "instant": false,
+                   "legendFormat": "50th percentile",
+                   "range": true
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "(\n  histogram_sum(sum(rate(alloy_component_evaluation_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))) /\n  histogram_count(sum(rate(alloy_component_evaluation_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])))\n)\nor\n(\n  sum(rate(alloy_component_evaluation_seconds_sum{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) /\n  sum(rate(alloy_component_evaluation_seconds_count{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n)\n",
+                   "instant": false,
+                   "legendFormat": "Average",
+                   "range": true
+                }
+             ],
+             "title": "Component evaluation time",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The maximum duration of slow component evaluations over time.\n\nThis shows components that took longer than 1 minute to evaluate. Ideally, no component \nshould take more than 1 minute to evaluate. The components displayed in this chart\nmay be a sign of a problem with the pipeline or performance issues.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "s"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 16,
+                "y": 12
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "increase(alloy_component_evaluation_slow_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])\n",
+                   "instant": false,
+                   "legendFormat": "{{instance}} {{controller_path}} {{component_id}}",
+                   "range": true
+                }
+             ],
+             "title": "Slow components evaluation times",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Detailed histogram view of how long component evaluations take.\n\nThe goal is to design your config so that evaluations take as little\ntime as possible; under 100ms is a good goal.\n",
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 0,
+                "y": 22
+             },
+             "maxDataPoints": 30,
+             "options": {
+                "calculate": false,
+                "cellGap": 0,
+                "color": {
+                   "scheme": "Spectral"
+                },
+                "exemplars": {
+                   "color": "rgba(255,0,255,0.7)"
+                },
+                "filterValues": {
+                   "le": 0.10000000000000001
+                },
+                "tooltip": {
+                   "show": true,
+                   "yHistogram": true
+                },
+                "yAxis": {
+                   "unit": "s"
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(increase(alloy_component_evaluation_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\nor ignoring (le)\nsum by (le) (increase(alloy_component_evaluation_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                   "format": "heatmap",
+                   "instant": false,
+                   "legendFormat": "{{le}}",
+                   "range": true
+                }
+             ],
+             "title": "Component evaluation histogram",
+             "type": "heatmap"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Detailed histogram of how long components wait to be evaluated after their dependency is updated.\n\nThe goal is to design your config so that most of the time components do not\nqueue for long; under 10ms is a good goal.\n",
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 8,
+                "y": 22
+             },
+             "maxDataPoints": 30,
+             "options": {
+                "calculate": false,
+                "cellGap": 0,
+                "color": {
+                   "scheme": "Spectral"
+                },
+                "exemplars": {
+                   "color": "rgba(255,0,255,0.7)"
+                },
+                "filterValues": {
+                   "le": 0.10000000000000001
+                },
+                "tooltip": {
+                   "show": true,
+                   "yHistogram": true
+                },
+                "yAxis": {
+                   "unit": "s"
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(increase(alloy_component_dependencies_wait_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\nor ignoring (le)\nsum by (le) (increase(alloy_component_dependencies_wait_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                   "format": "heatmap",
+                   "instant": false,
+                   "legendFormat": "{{le}}",
+                   "range": true
+                }
+             ],
+             "title": "Component dependency wait histogram",
+             "type": "heatmap"
+          }
+       ],
+       "refresh": "30s",
+       "schemaVersion": 36,
+       "tags": [
+          "alloy-mixin"
+       ],
+       "templating": {
+          "list": [
+             {
+                "label": "Data Source",
+                "name": "datasource",
+                "query": "prometheus",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "label": "Loki Data Source",
+                "name": "loki_datasource",
+                "query": "loki",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "cluster",
+                "multi": true,
+                "name": "cluster",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components, cluster)\n",
+                   "refId": "cluster"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "namespace",
+                "multi": true,
+                "name": "namespace",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\"}, namespace)\n",
+                   "refId": "namespace"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allValue": ".*",
+                "datasource": "${datasource}",
+                "includeAll": true,
+                "label": "job",
+                "multi": true,
+                "name": "job",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\"}, job)\n",
+                   "refId": "job"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "datasource": {
+                   "type": "prometheus",
+                   "uid": "${datasource}"
+                },
+                "name": "filters",
+                "type": "adhoc"
+             },
+             {
+                "allowCustomValue": true,
+                "current": {
+                   "selected": true,
+                   "text": "instance",
+                   "value": "instance"
+                },
+                "label": "Group by",
+                "name": "groupby",
+                "query": "instance,component_path,component_id,controller_path,health_type,job,namespace,cluster,pod",
+                "type": "custom"
+             }
+          ]
+       },
+       "time": {
+          "from": "now-1h",
+          "to": "now"
+       },
+       "timepicker": {
+          "refresh_intervals": [
+             "5s",
+             "10s",
+             "30s",
+             "1m",
+             "5m",
+             "15m",
+             "30m",
+             "1h",
+             "2h",
+             "1d"
+          ],
+          "time_options": [
+             "5m",
+             "15m",
+             "1h",
+             "6h",
+             "12h",
+             "24h",
+             "2d",
+             "7d",
+             "30d",
+             "90d"
+          ]
+       },
+       "timezone": "utc",
+       "title": "Alloy / Controller",
+       "uid": "bf9f456aad7108b2c808dbd9973e386f"
+    }
+  alloy-opentelemetry.json: |
+    {
+       "graphTooltip": 1,
+       "links": [
+          {
+             "asDropdown": true,
+             "icon": "external link",
+             "includeVars": true,
+             "keepTime": true,
+             "tags": [
+                "alloy-mixin"
+             ],
+             "targetBlank": false,
+             "title": "Dashboards",
+             "type": "dashboards"
+          }
+       ],
+       "panels": [
+          {
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+             },
+             "title": "Receivers [otelcol.receiver.*]",
+             "type": "row"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of metric points successfully pushed into the pipeline.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 0,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_receiver_accepted_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Accepted metric points",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of metric points that could not be pushed into the pipeline.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 6,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Refused metric points",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of log records successfully pushed into the pipeline.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 12,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_receiver_accepted_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Accepted logs",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of log records that could not be pushed into the pipeline.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 18,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Refused logs",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of spans successfully pushed into the pipeline.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 0,
+                "y": 10
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_receiver_accepted_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Accepted spans",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of spans that could not be pushed into the pipeline.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 6,
+                "y": 10
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Refused spans",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The duration of inbound RPCs for otelcol.receiver.* components.\n",
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 12,
+                "y": 10
+             },
+             "maxDataPoints": 30,
+             "options": {
+                "calculate": false,
+                "color": {
+                   "exponent": 0.5,
+                   "fill": "dark-orange",
+                   "mode": "scheme",
+                   "scale": "exponential",
+                   "scheme": "Oranges",
+                   "steps": 65
+                },
+                "exemplars": {
+                   "color": "rgba(255,0,255,0.7)"
+                },
+                "filterValues": {
+                   "le": 1.0000000000000001e-09
+                },
+                "tooltip": {
+                   "show": true,
+                   "yHistogram": true
+                },
+                "yAxis": {
+                   "unit": "ms"
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by (le) (increase(rpc_server_duration_milliseconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\", component_id=~\"otelcol.receiver.*\"}[$__rate_interval]))\n",
+                   "format": "heatmap",
+                   "instant": false,
+                   "legendFormat": "{{le}}",
+                   "range": true
+                }
+             ],
+             "title": "RPC server duration",
+             "type": "heatmap"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The duration of inbound HTTP requests for otelcol.receiver.* components.\n",
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 18,
+                "y": 10
+             },
+             "maxDataPoints": 30,
+             "options": {
+                "calculate": false,
+                "color": {
+                   "exponent": 0.5,
+                   "fill": "dark-orange",
+                   "mode": "scheme",
+                   "scale": "exponential",
+                   "scheme": "Oranges",
+                   "steps": 65
+                },
+                "exemplars": {
+                   "color": "rgba(255,0,255,0.7)"
+                },
+                "filterValues": {
+                   "le": 1.0000000000000001e-09
+                },
+                "tooltip": {
+                   "show": true,
+                   "yHistogram": true
+                },
+                "yAxis": {
+                   "unit": "ms"
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by (le) (increase(http_server_duration_milliseconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\", component_id=~\"otelcol.receiver.*\"}[$__rate_interval]))\n",
+                   "format": "heatmap",
+                   "instant": false,
+                   "legendFormat": "{{le}}",
+                   "range": true
+                }
+             ],
+             "title": "HTTP server duration",
+             "type": "heatmap"
+          },
+          {
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 20
+             },
+             "title": "Batching [otelcol.processor.batch]",
+             "type": "row"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of spans, metric datapoints, or log lines in a batch\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "short"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 0,
+                "y": 20
+             },
+             "maxDataPoints": 30,
+             "options": {
+                "calculate": false,
+                "color": {
+                   "exponent": 0.5,
+                   "fill": "dark-orange",
+                   "mode": "scheme",
+                   "scale": "exponential",
+                   "scheme": "Oranges",
+                   "steps": 65
+                },
+                "exemplars": {
+                   "color": "rgba(255,0,255,0.7)"
+                },
+                "filterValues": {
+                   "le": 1.0000000000000001e-09
+                },
+                "tooltip": {
+                   "show": true,
+                   "yHistogram": true
+                },
+                "yAxis": {
+                   "unit": "short"
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by (le) (increase(otelcol_processor_batch_batch_send_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "format": "heatmap",
+                   "instant": false,
+                   "legendFormat": "{{le}}",
+                   "range": true
+                }
+             ],
+             "title": "Number of units in the batch",
+             "type": "heatmap"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of distinct metadata value combinations being processed\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "short"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 8,
+                "y": 20
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (otelcol_processor_batch_metadata_cardinality{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"})\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Distinct metadata values",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of times the batch was sent due to a timeout trigger\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 16,
+                "y": 20
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_processor_batch_timeout_trigger_send_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Timeout trigger",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 30
+             },
+             "title": "Exporters [otelcol.exporter.*]",
+             "type": "row"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of metric points successfully sent to destination.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 0,
+                "y": 30
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_exporter_sent_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Exported metric points",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of metric points that failed to be sent to destination.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 6,
+                "y": 30
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_exporter_send_failed_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Failed metric points",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of log records successfully sent to destination.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 12,
+                "y": 30
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_exporter_sent_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Exported logs",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of log records that failed to be sent to destination.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 18,
+                "y": 30
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_exporter_send_failed_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Failed logs",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of spans successfully sent to destination.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 0,
+                "y": 40
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_exporter_sent_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Exported spans",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of spans that failed to be sent to destination.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 20,
+                      "gradientMode": "hue",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "cps"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 6,
+                "y": 40
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(otelcol_exporter_send_failed_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Failed spans",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The duration of outbound RPCs for otelcol.exporter.* components.\n",
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 12,
+                "y": 40
+             },
+             "maxDataPoints": 30,
+             "options": {
+                "calculate": false,
+                "color": {
+                   "exponent": 0.5,
+                   "fill": "dark-orange",
+                   "mode": "scheme",
+                   "scale": "exponential",
+                   "scheme": "Oranges",
+                   "steps": 65
+                },
+                "exemplars": {
+                   "color": "rgba(255,0,255,0.7)"
+                },
+                "filterValues": {
+                   "le": 1.0000000000000001e-09
+                },
+                "tooltip": {
+                   "show": true,
+                   "yHistogram": true
+                },
+                "yAxis": {
+                   "unit": "ms"
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by (le) (increase(rpc_client_duration_milliseconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\", component_id=~\"otelcol.exporter.*\"}[$__rate_interval]))\n",
+                   "format": "heatmap",
+                   "instant": false,
+                   "legendFormat": "{{le}}",
+                   "range": true
+                }
+             ],
+             "title": "RPC client duration",
+             "type": "heatmap"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "The duration of outbound HTTP requests for otelcol.exporter.* components.\n",
+             "gridPos": {
+                "h": 10,
+                "w": 6,
+                "x": 18,
+                "y": 40
+             },
+             "maxDataPoints": 30,
+             "options": {
+                "calculate": false,
+                "color": {
+                   "exponent": 0.5,
+                   "fill": "dark-orange",
+                   "mode": "scheme",
+                   "scale": "exponential",
+                   "scheme": "Oranges",
+                   "steps": 65
+                },
+                "exemplars": {
+                   "color": "rgba(255,0,255,0.7)"
+                },
+                "filterValues": {
+                   "le": 1.0000000000000001e-09
+                },
+                "tooltip": {
+                   "show": true,
+                   "yHistogram": true
+                },
+                "yAxis": {
+                   "unit": "ms"
+                }
+             },
+             "pluginVersion": "9.0.6",
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by (le) (increase(http_client_duration_milliseconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\", component_id=~\"otelcol.exporter.*\"}[$__rate_interval]))\n",
+                   "format": "heatmap",
+                   "instant": false,
+                   "legendFormat": "{{le}}",
+                   "range": true
+                }
+             ],
+             "title": "HTTP client duration",
+             "type": "heatmap"
+          }
+       ],
+       "refresh": "30s",
+       "schemaVersion": 36,
+       "tags": [
+          "alloy-mixin"
+       ],
+       "templating": {
+          "list": [
+             {
+                "label": "Data Source",
+                "name": "datasource",
+                "query": "prometheus",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "label": "Loki Data Source",
+                "name": "loki_datasource",
+                "query": "loki",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "cluster",
+                "multi": true,
+                "name": "cluster",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components, cluster)\n",
+                   "refId": "cluster"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "namespace",
+                "multi": true,
+                "name": "namespace",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\"}, namespace)\n",
+                   "refId": "namespace"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allValue": ".*",
+                "datasource": "${datasource}",
+                "includeAll": true,
+                "label": "job",
+                "multi": true,
+                "name": "job",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\"}, job)\n",
+                   "refId": "job"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allValue": ".*",
+                "datasource": "${datasource}",
+                "includeAll": true,
+                "label": "instance",
+                "multi": true,
+                "name": "instance",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}, instance)\n",
+                   "refId": "instance"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "datasource": {
+                   "type": "prometheus",
+                   "uid": "${datasource}"
+                },
+                "name": "filters",
+                "type": "adhoc"
+             },
+             {
+                "allowCustomValue": true,
+                "current": {
+                   "selected": true,
+                   "text": "instance",
+                   "value": "instance"
+                },
+                "label": "Group by",
+                "name": "groupby",
+                "query": "instance,receiver,transport,exporter,processor,component_id,otel_signal,otel_scope_name,job,namespace,cluster,pod",
+                "type": "custom"
+             }
+          ]
+       },
+       "time": {
+          "from": "now-1h",
+          "to": "now"
+       },
+       "timepicker": {
+          "refresh_intervals": [
+             "5s",
+             "10s",
+             "30s",
+             "1m",
+             "5m",
+             "15m",
+             "30m",
+             "1h",
+             "2h",
+             "1d"
+          ],
+          "time_options": [
+             "5m",
+             "15m",
+             "1h",
+             "6h",
+             "12h",
+             "24h",
+             "2d",
+             "7d",
+             "30d",
+             "90d"
+          ]
+       },
+       "timezone": "utc",
+       "title": "Alloy / OpenTelemetry",
+       "uid": "9b6d37c8603e19e8922133984faad93d"
+    }
+  alloy-otel-engine-overview.json: |
+    {
+       "description": "Overview of the OpenTelemetry (OTel) engine running inside Alloy.",
+       "graphTooltip": 1,
+       "links": [
+          {
+             "icon": "doc",
+             "targetBlank": true,
+             "title": "Documentation",
+             "tooltip": "OTel Engine documentation",
+             "type": "link",
+             "url": "https://grafana.com/docs/alloy/latest/opentelemetry/"
+          },
+          {
+             "asDropdown": true,
+             "icon": "external link",
+             "includeVars": true,
+             "keepTime": true,
+             "tags": [
+                "alloy-mixin"
+             ],
+             "targetBlank": false,
+             "title": "Dashboards",
+             "type": "dashboards"
+          }
+       ],
+       "panels": [
+          {
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+             },
+             "title": "Overview",
+             "type": "row"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Current number of pods with OTel engine metrics.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "min": 0
+                }
+             },
+             "gridPos": {
+                "h": 5,
+                "w": 8,
+                "x": 0,
+                "y": 0
+             },
+             "options": {
+                "colorMode": "none",
+                "graphMode": "area"
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "count(otelcol_process_uptime_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"})\n",
+                   "instant": false,
+                   "legendFormat": "count",
+                   "range": true
+                }
+             ],
+             "title": "Pods count",
+             "type": "stat"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Count of series with process uptime under 60 seconds, grouped by the selected dimension.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "drawStyle": "bars",
+                      "fillOpacity": 100,
+                      "gradientMode": "none",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   }
+                }
+             },
+             "gridPos": {
+                "h": 5,
+                "w": 8,
+                "x": 0,
+                "y": 5
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "count by(${groupby}) (otelcol_process_uptime_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"} < 60)\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Recently started by ${groupby}",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Receiver success rate for each signal type.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "percentunit"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 8,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(rate(otelcol_receiver_accepted_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n/\n(\n    sum(rate(otelcol_receiver_accepted_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n    +\n    (sum(rate(otelcol_receiver_refused_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n)\n",
+                   "instant": false,
+                   "legendFormat": "spans",
+                   "range": true
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(rate(otelcol_receiver_accepted_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n/\n(\n    sum(rate(otelcol_receiver_accepted_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n    +\n    (sum(rate(otelcol_receiver_refused_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n)\n",
+                   "instant": false,
+                   "legendFormat": "metric points",
+                   "range": true
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(rate(otelcol_receiver_accepted_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n/\n(\n    sum(rate(otelcol_receiver_accepted_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n    +\n    (sum(rate(otelcol_receiver_refused_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n)\n",
+                   "instant": false,
+                   "legendFormat": "log records",
+                   "range": true
+                }
+             ],
+             "title": "Receivers SR",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Exporter success rate for each signal type.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "percentunit"
+                }
+             },
+             "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 16,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(rate(otelcol_exporter_sent_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n/\n(\n    sum(rate(otelcol_exporter_sent_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n    +\n    (sum(rate(otelcol_exporter_enqueue_failed_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n    +\n    (sum(rate(otelcol_exporter_send_failed_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n)\n",
+                   "instant": false,
+                   "legendFormat": "spans",
+                   "range": true
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(rate(otelcol_exporter_sent_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n/\n(\n    sum(rate(otelcol_exporter_sent_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n    +\n    (sum(rate(otelcol_exporter_enqueue_failed_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n    +\n    (sum(rate(otelcol_exporter_send_failed_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n)\n",
+                   "instant": false,
+                   "legendFormat": "metric points",
+                   "range": true
+                },
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum(rate(otelcol_exporter_sent_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n/\n(\n    sum(rate(otelcol_exporter_sent_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n    +\n    (sum(rate(otelcol_exporter_enqueue_failed_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n    +\n    (sum(rate(otelcol_exporter_send_failed_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])) or vector(0))\n)\n",
+                   "instant": false,
+                   "legendFormat": "log records",
+                   "range": true
+                }
+             ],
+             "title": "Exporters SR",
+             "type": "timeseries"
+          },
+          {
+             "collapsed": true,
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 20
+             },
+             "panels": [
+                {
+                   "datasource": "${datasource}",
+                   "description": "Total rate of accepted and refused spans across all receivers.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 20
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_receiver_accepted_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "accepted",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_receiver_refused_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "refused",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Total accepted & refused",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Accepted and refused spans rates broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 20
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_accepted_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} accepted",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} refused",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Accepted by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Refused spans rate broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 20
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Refused by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Total rate of sent, send-failed, and enqueue-failed spans across all exporters.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 30
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_sent_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "sent",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_send_failed_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "send failed",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_enqueue_failed_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "enqueue failed",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Total sent & failed",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Sent spans rate broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 30
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_sent_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Sent by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Send-failed and enqueue-failed spans rates broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 30
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_send_failed_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} send failed",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_enqueue_failed_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} enqueue failed",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Failed by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Exporter send queue usage as a fraction of capacity. Values approaching 1 indicate backpressure and risk of data loss.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "percentunit"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 40
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (otelcol_exporter_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", data_type=\"traces\"})\n/\nclamp_min(sum by(${groupby}) (otelcol_exporter_queue_capacity{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", data_type=\"traces\"}), 1)\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Queue utilization by ${groupby}",
+                   "type": "timeseries"
+                }
+             ],
+             "title": "Spans & Traces",
+             "type": "row"
+          },
+          {
+             "collapsed": true,
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 50
+             },
+             "panels": [
+                {
+                   "datasource": "${datasource}",
+                   "description": "Total rate of accepted and refused metric points across all receivers.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 50
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_receiver_accepted_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "accepted",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_receiver_refused_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "refused",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Total accepted & refused",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Accepted and refused metric points rates broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 50
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_accepted_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} accepted",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} refused",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Accepted by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Refused metric points rate broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 50
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Refused by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Total rate of sent, send-failed, and enqueue-failed metric points across all exporters.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 60
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_sent_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "sent",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_send_failed_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "send failed",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_enqueue_failed_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "enqueue failed",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Total sent & failed",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Sent metric points rate broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 60
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_sent_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Sent by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Send-failed and enqueue-failed metric points rates broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 60
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_send_failed_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} send failed",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_enqueue_failed_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} enqueue failed",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Failed by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Exporter send queue usage as a fraction of capacity. Values approaching 1 indicate backpressure and risk of data loss.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "percentunit"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 70
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (otelcol_exporter_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", data_type=\"metrics\"})\n/\nclamp_min(sum by(${groupby}) (otelcol_exporter_queue_capacity{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", data_type=\"metrics\"}), 1)\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Queue utilization by ${groupby}",
+                   "type": "timeseries"
+                }
+             ],
+             "title": "Metrics",
+             "type": "row"
+          },
+          {
+             "collapsed": true,
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 80
+             },
+             "panels": [
+                {
+                   "datasource": "${datasource}",
+                   "description": "Total rate of accepted and refused log records across all receivers.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 80
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_receiver_accepted_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "accepted",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_receiver_refused_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "refused",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Total accepted & refused",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Accepted and refused log records rates broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 80
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_accepted_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} accepted",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} refused",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Accepted by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Refused log records rate broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 80
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_receiver_refused_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Receiver: Refused by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Total rate of sent, send-failed, and enqueue-failed log records across all exporters.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 90
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_sent_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "sent",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_send_failed_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "send failed",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_exporter_enqueue_failed_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "enqueue failed",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Total sent & failed",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Sent log records rate broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 90
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_sent_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Sent by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Send-failed and enqueue-failed log records rates broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 90
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_send_failed_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} send failed",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_exporter_enqueue_failed_log_records_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} enqueue failed",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Failed by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Exporter send queue usage as a fraction of capacity. Values approaching 1 indicate backpressure and risk of data loss.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "percentunit"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 100
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (otelcol_exporter_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", data_type=\"logs\"})\n/\nclamp_min(sum by(${groupby}) (otelcol_exporter_queue_capacity{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", data_type=\"logs\"}), 1)\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Exporter: Queue utilization by ${groupby}",
+                   "type": "timeseries"
+                }
+             ],
+             "title": "Logs",
+             "type": "row"
+          },
+          {
+             "collapsed": true,
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 110
+             },
+             "panels": [
+                {
+                   "datasource": "${datasource}",
+                   "description": "Incoming vs outgoing items across all processors. A gap between the two may indicate items being dropped or filtered.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 110
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_processor_incoming_items_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "incoming",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_processor_outgoing_items_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "outgoing",
+                         "range": true
+                      }
+                   ],
+                   "title": "Processor throughput",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Incoming vs outgoing items broken down by the selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 110
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_processor_incoming_items_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} incoming",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_processor_outgoing_items_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} outgoing",
+                         "range": true
+                      }
+                   ],
+                   "title": "Processor throughput by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Items refused by processors, broken down by signal type and selected dimension.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 110
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_processor_refused_spans_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} spans",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_processor_refused_metric_points_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} metric points",
+                         "range": true
+                      }
+                   ],
+                   "title": "Processor refused by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Distribution of batch sizes when sent. Works with both batching approaches:\nthe batch processor (processor/batch) and the exporter sending_queue batch (sending_queue.batch).\nWhichever is active will populate this panel.\nRequires \"normal\" telemetry level.",
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 120
+                   },
+                   "maxDataPoints": 30,
+                   "options": {
+                      "calculate": false,
+                      "color": {
+                         "exponent": 0.5,
+                         "fill": "dark-orange",
+                         "mode": "scheme",
+                         "scale": "exponential",
+                         "scheme": "Oranges",
+                         "steps": 65
+                      },
+                      "exemplars": {
+                         "color": "rgba(255,0,255,0.7)"
+                      },
+                      "filterValues": {
+                         "le": 1.0000000000000001e-09
+                      },
+                      "tooltip": {
+                         "show": true,
+                         "yHistogram": true
+                      },
+                      "yAxis": {
+                         "unit": "short"
+                      }
+                   },
+                   "pluginVersion": "9.0.6",
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by (le) (increase(otelcol_exporter_queue_batch_send_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\nor\nsum by (le) (increase(otelcol_processor_batch_batch_send_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "format": "heatmap",
+                         "instant": false,
+                         "legendFormat": "{{le}}",
+                         "range": true
+                      }
+                   ],
+                   "title": "Batch send size",
+                   "type": "heatmap"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "How batches are flushed: by reaching the size limit or by timeout. Mostly timeout triggers may indicate low throughput or a large batch size setting. Only available with the batch processor; the exporter sending_queue batch does not emit trigger metrics. Requires \"normal\" telemetry level.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 120
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_processor_batch_batch_size_trigger_send_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} size trigger",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (rate(otelcol_processor_batch_timeout_trigger_send_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "{{${groupby}}} timeout trigger",
+                         "range": true
+                      }
+                   ],
+                   "title": "Batch send triggers by ${groupby}",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Number of distinct metadata value combinations being processed. High cardinality increases memory usage and may hit the metadata_cardinality_limit. Only available with the batch processor; the exporter sending_queue batch does not emit this metric. Requires \"normal\" telemetry level.",
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 120
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (otelcol_processor_batch_metadata_cardinality{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"})\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Batch metadata cardinality by ${groupby}",
+                   "type": "timeseries"
+                }
+             ],
+             "title": "Processing & Batching",
+             "type": "row"
+          },
+          {
+             "collapsed": true,
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 130
+             },
+             "panels": [
+                {
+                   "datasource": "${datasource}",
+                   "description": "CPU cores used by OTel engine processes. 1.0 = 100% of one core.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "short"
+                      },
+                      "overrides": [
+                         {
+                            "matcher": {
+                               "id": "byName",
+                               "options": "average"
+                            },
+                            "properties": [
+                               {
+                                  "id": "color",
+                                  "value": {
+                                     "fixedColor": "green",
+                                     "mode": "fixed"
+                                  }
+                               },
+                               {
+                                  "id": "custom.lineStyle",
+                                  "value": {
+                                     "dash": [
+                                        10,
+                                        10
+                                     ],
+                                     "fill": "dash"
+                                  }
+                               },
+                               {
+                                  "id": "custom.lineWidth",
+                                  "value": 2
+                               }
+                            ]
+                         }
+                      ]
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 130
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "avg(sum by(instance) (rate(otelcol_process_cpu_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])))\n",
+                         "instant": false,
+                         "legendFormat": "average",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(instance) (rate(otelcol_process_cpu_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "CPU usage",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Resident set size (physical memory) used by OTel engine processes.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "bytes"
+                      },
+                      "overrides": [
+                         {
+                            "matcher": {
+                               "id": "byName",
+                               "options": "average"
+                            },
+                            "properties": [
+                               {
+                                  "id": "color",
+                                  "value": {
+                                     "fixedColor": "green",
+                                     "mode": "fixed"
+                                  }
+                               },
+                               {
+                                  "id": "custom.lineStyle",
+                                  "value": {
+                                     "dash": [
+                                        10,
+                                        10
+                                     ],
+                                     "fill": "dash"
+                                  }
+                               },
+                               {
+                                  "id": "custom.lineWidth",
+                                  "value": 2
+                               }
+                            ]
+                         }
+                      ]
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 130
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "avg(sum by(instance) (otelcol_process_memory_rss_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}))\n",
+                         "instant": false,
+                         "legendFormat": "average",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(instance) (otelcol_process_memory_rss_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"})\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Memory RSS",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Rate of heap memory allocation. High allocation rates often lead to GC pressure.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "Bps"
+                      },
+                      "overrides": [
+                         {
+                            "matcher": {
+                               "id": "byName",
+                               "options": "average"
+                            },
+                            "properties": [
+                               {
+                                  "id": "color",
+                                  "value": {
+                                     "fixedColor": "green",
+                                     "mode": "fixed"
+                                  }
+                               },
+                               {
+                                  "id": "custom.lineStyle",
+                                  "value": {
+                                     "dash": [
+                                        10,
+                                        10
+                                     ],
+                                     "fill": "dash"
+                                  }
+                               },
+                               {
+                                  "id": "custom.lineWidth",
+                                  "value": 2
+                               }
+                            ]
+                         }
+                      ]
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 16,
+                      "y": 130
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "avg(sum by(instance) (rate(otelcol_process_runtime_total_alloc_bytes_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval])))\n",
+                         "instant": false,
+                         "legendFormat": "average",
+                         "range": true
+                      },
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(instance) (rate(otelcol_process_runtime_total_alloc_bytes_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Go allocation rate",
+                   "type": "timeseries"
+                }
+             ],
+             "title": "Process Resources",
+             "type": "row"
+          },
+          {
+             "collapsed": true,
+             "datasource": "${datasource}",
+             "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 150
+             },
+             "panels": [
+                {
+                   "datasource": "${datasource}",
+                   "description": "Number of unique hosts identified by the grafanacloud connector for Application Observability billing. Only available when the grafanacloud connector is configured.",
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 0,
+                      "y": 150
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum by(${groupby}) (otelcol_grafanacloud_host_count_ratio{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"})\n",
+                         "instant": false,
+                         "legendFormat": "__auto",
+                         "range": true
+                      }
+                   ],
+                   "title": "Unique hosts tracked",
+                   "type": "timeseries"
+                },
+                {
+                   "datasource": "${datasource}",
+                   "description": "Total rate of datapoints sent to Grafana Cloud by the grafanacloud connector. Only available when the grafanacloud connector is configured.",
+                   "fieldConfig": {
+                      "defaults": {
+                         "unit": "cps"
+                      }
+                   },
+                   "gridPos": {
+                      "h": 10,
+                      "w": 8,
+                      "x": 8,
+                      "y": 150
+                   },
+                   "targets": [
+                      {
+                         "datasource": "${datasource}",
+                         "expr": "sum(rate(otelcol_grafanacloud_datapoint_count_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}[$__rate_interval]))\n",
+                         "instant": false,
+                         "legendFormat": "total",
+                         "range": true
+                      }
+                   ],
+                   "title": "Datapoints sent rate",
+                   "type": "timeseries"
+                }
+             ],
+             "title": "Grafana Cloud Connector",
+             "type": "row"
+          }
+       ],
+       "refresh": "30s",
+       "schemaVersion": 36,
+       "tags": [
+          "alloy-mixin"
+       ],
+       "templating": {
+          "list": [
+             {
+                "label": "Data Source",
+                "name": "datasource",
+                "query": "prometheus",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "label": "Loki Data Source",
+                "name": "loki_datasource",
+                "query": "loki",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "cluster",
+                "multi": true,
+                "name": "cluster",
+                "query": {
+                   "query": "label_values(otelcol_process_uptime_seconds_total, cluster)",
+                   "refId": "cluster"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "namespace",
+                "multi": true,
+                "name": "namespace",
+                "query": {
+                   "query": "label_values(otelcol_process_uptime_seconds_total{cluster=~\"$cluster\"}, namespace)",
+                   "refId": "namespace"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allValue": ".*",
+                "datasource": "${datasource}",
+                "includeAll": true,
+                "label": "job",
+                "multi": true,
+                "name": "job",
+                "query": {
+                   "query": "label_values(otelcol_process_uptime_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}, job)",
+                   "refId": "job"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allowCustomValue": true,
+                "current": {
+                   "selected": true,
+                   "text": "instance",
+                   "value": "instance"
+                },
+                "label": "Group by",
+                "name": "groupby",
+                "query": "instance,receiver,transport,exporter,processor,otel_signal,otel_scope_name,job,namespace,cluster,pod",
+                "type": "custom"
+             },
+             {
+                "datasource": {
+                   "type": "prometheus",
+                   "uid": "${datasource}"
+                },
+                "name": "filters",
+                "type": "adhoc"
+             }
+          ]
+       },
+       "time": {
+          "from": "now-1h",
+          "to": "now"
+       },
+       "timepicker": {
+          "refresh_intervals": [
+             "5s",
+             "10s",
+             "30s",
+             "1m",
+             "5m",
+             "15m",
+             "30m",
+             "1h",
+             "2h",
+             "1d"
+          ],
+          "time_options": [
+             "5m",
+             "15m",
+             "1h",
+             "6h",
+             "12h",
+             "24h",
+             "2d",
+             "7d",
+             "30d",
+             "90d"
+          ]
+       },
+       "timezone": "utc",
+       "title": "Alloy / OTel Engine Overview",
+       "uid": "975a324565222be2906d572d6fc960ff"
+    }
+  alloy-resources.json: |
+    {
+       "annotations": {
+          "list": [
+             {
+                "datasource": "$loki_datasource",
+                "enable": true,
+                "expr": "{cluster=~\"$cluster\", container=\"kube-diff-logger\"} | json | namespace_extracted=\"alloy\" | name_extracted=~\"alloy.*\"",
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "instant": false,
+                "name": "Deployments",
+                "titleFormat": "{{cluster}}/{{namespace}}"
+             }
+          ]
+       },
+       "graphTooltip": 1,
+       "links": [
+          {
+             "asDropdown": true,
+             "icon": "external link",
+             "includeVars": true,
+             "keepTime": true,
+             "tags": [
+                "alloy-mixin"
+             ],
+             "targetBlank": false,
+             "title": "Dashboards",
+             "type": "dashboards"
+          }
+       ],
+       "panels": [
+          {
+             "datasource": "${datasource}",
+             "description": "CPU usage of the Alloy process relative to 1 CPU core.\n\nFor example, 100% means using one entire CPU core.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "percentunit"
+                }
+             },
+             "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(alloy_resources_process_cpu_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "CPU usage",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Resident memory size of the Alloy process.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "decbytes"
+                }
+             },
+             "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (alloy_resources_process_resident_memory_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"})\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Memory (RSS)",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Rate at which the Alloy process performs garbage collections.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "drawStyle": "points",
+                      "pointSize": 3
+                   },
+                   "unit": "ops"
+                }
+             },
+             "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 8
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (\n  rate(go_gc_duration_seconds_count{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[5m])\n  and on(instance)\n  alloy_build_info{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}\n)\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Garbage collections",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Number of goroutines which are running in parallel. An infinitely\ngrowing number of these indicates a goroutine leak.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "none"
+                }
+             },
+             "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 8,
+                "y": 8
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (\n  go_goroutines{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}\n  and on(instance)\n  alloy_build_info{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}\n)\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Goroutines",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Heap memory currently in use by the Alloy process.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "unit": "decbytes"
+                }
+             },
+             "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 8
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (\n  go_memstats_heap_inuse_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}\n  and on(instance)\n  alloy_build_info{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}\n)\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Memory (heap in use)",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Rate of data received across all network interfaces for the machine\nAlloy is running on.\n\nData shown here is across all running processes and not exclusive to\nthe running Alloy process.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 30,
+                      "gradientMode": "none",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "Bps"
+                }
+             },
+             "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 16
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(alloy_resources_machine_rx_bytes_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Network receive bandwidth",
+             "type": "timeseries"
+          },
+          {
+             "datasource": "${datasource}",
+             "description": "Rate of data sent across all network interfaces for the machine\nAlloy is running on.\n\nData shown here is across all running processes and not exclusive to\nthe running Alloy process.\n",
+             "fieldConfig": {
+                "defaults": {
+                   "custom": {
+                      "fillOpacity": 30,
+                      "gradientMode": "none",
+                      "stacking": {
+                         "mode": "normal"
+                      }
+                   },
+                   "unit": "Bps"
+                }
+             },
+             "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 16
+             },
+             "targets": [
+                {
+                   "datasource": "${datasource}",
+                   "expr": "sum by(${groupby}) (rate(alloy_resources_machine_tx_bytes_total{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n",
+                   "instant": false,
+                   "legendFormat": "__auto",
+                   "range": true
+                }
+             ],
+             "title": "Network send bandwidth",
+             "type": "timeseries"
+          }
+       ],
+       "refresh": "30s",
+       "schemaVersion": 36,
+       "tags": [
+          "alloy-mixin"
+       ],
+       "templating": {
+          "list": [
+             {
+                "label": "Data Source",
+                "name": "datasource",
+                "query": "prometheus",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "label": "Loki Data Source",
+                "name": "loki_datasource",
+                "query": "loki",
+                "refresh": 1,
+                "sort": 2,
+                "type": "datasource"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "cluster",
+                "multi": true,
+                "name": "cluster",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components, cluster)\n",
+                   "refId": "cluster"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allowCustomValue": true,
+                "datasource": "${datasource}",
+                "label": "namespace",
+                "multi": true,
+                "name": "namespace",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\"}, namespace)\n",
+                   "refId": "namespace"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allValue": ".*",
+                "datasource": "${datasource}",
+                "includeAll": true,
+                "label": "job",
+                "multi": true,
+                "name": "job",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\"}, job)\n",
+                   "refId": "job"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "allValue": ".*",
+                "datasource": "${datasource}",
+                "includeAll": true,
+                "label": "instance",
+                "multi": true,
+                "name": "instance",
+                "query": {
+                   "query": "label_values(alloy_component_controller_running_components{cluster=~\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}, instance)\n",
+                   "refId": "instance"
+                },
+                "refresh": 2,
+                "sort": 1,
+                "type": "query"
+             },
+             {
+                "datasource": {
+                   "type": "prometheus",
+                   "uid": "${datasource}"
+                },
+                "name": "filters",
+                "type": "adhoc"
+             },
+             {
+                "allowCustomValue": true,
+                "current": {
+                   "selected": true,
+                   "text": "instance",
+                   "value": "instance"
+                },
+                "label": "Group by",
+                "name": "groupby",
+                "query": "instance,job,namespace,cluster,pod",
+                "type": "custom"
+             }
+          ]
+       },
+       "time": {
+          "from": "now-1h",
+          "to": "now"
+       },
+       "timepicker": {
+          "refresh_intervals": [
+             "5s",
+             "10s",
+             "30s",
+             "1m",
+             "5m",
+             "15m",
+             "30m",
+             "1h",
+             "2h",
+             "1d"
+          ],
+          "time_options": [
+             "5m",
+             "15m",
+             "1h",
+             "6h",
+             "12h",
+             "24h",
+             "2d",
+             "7d",
+             "30d",
+             "90d"
+          ]
+       },
+       "timezone": "utc",
+       "title": "Alloy / Resources",
+       "uid": "d6a8574c31f3d7cb8f1345ec84d15a67"
+    }
+kind: ConfigMap
+metadata:
+  name: alloy-dashboards
+  namespace: o11y

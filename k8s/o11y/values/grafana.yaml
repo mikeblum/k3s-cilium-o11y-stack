@@ -58,9 +58,9 @@ dashboardProviders:
 # Top-level key must match a provider name above; each entry maps to one JSON file
 # at /var/lib/grafana/dashboards/<provider>/<key>.json.
 #
-# OTel traces/logs dashboards (ClickHouse-backed) are bundled in the plugin and
-# are NOT on grafana.com — import them via:
-#   Connections → Data Sources → ClickHouse → Dashboards tab → Import
+# OTel dashboards come from dashboardsConfigMaps below (official Alloy mixin JSON,
+# no grafana.com gnetId).  ClickHouse-backed trace/log dashboards are bundled in
+# the plugin — import via: Connections → Data Sources → ClickHouse → Dashboards tab
 dashboards:
   cilium:
     # Cilium 1.12 dashboards — metric names are stable through 1.17.
@@ -86,11 +86,12 @@ dashboards:
         - name: DS_PROMETHEUS
           value: prometheus
 
-  otel:
-    # OTel Collector pipeline health — uses Prometheus, not ClickHouse.
-    # For trace/log dashboards backed by ClickHouse see the note above.
-    otel-collector:
-      gnetId: 15983         # OpenTelemetry Collector
-      datasource:
-        - name: DS_PROMETHEUS
-          value: prometheus
+  # otel provider dashboards come from the alloy-dashboards ConfigMap below —
+  # no gnetId entries here.
+
+# ConfigMap-backed dashboards (no grafana.com gnetId).
+# Key = provider name; value = ConfigMap name in the same namespace.
+# The helm chart mounts the ConfigMap at /var/lib/grafana/dashboards/<provider>/.
+# Source: https://github.com/grafana/alloy/tree/main/operations/alloy-mixin/rendered/dashboards
+dashboardsConfigMaps:
+  otel: alloy-dashboards
