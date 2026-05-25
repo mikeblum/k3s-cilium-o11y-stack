@@ -8,7 +8,7 @@ metadata:
   #   otel.json            — grafana/clickhouse-datasource v4.17.0 (opentelemetry-clickhouse.json)
   #                          patch: clickhouse-traces uid → ${datasource}
   #   cluster-analysis.json
-  #   data-analysis.json   — ClickHouse/clickhouse-grafana-datasource (main branch)
+  #   data-analysis.json   — ClickHouse/clickhouse-grafana-datasource @ 8f09a42301d5
   #   query-analysis.json    patch: y-Ka8y37k uid → ${datasource} (ad-hoc filters var)
 data:
   otel.json: |

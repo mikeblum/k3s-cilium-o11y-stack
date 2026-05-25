@@ -100,5 +100,9 @@ dashboards:
 dashboardsConfigMaps:
   # Source: https://github.com/grafana/alloy/tree/main/operations/alloy-mixin/rendered/dashboards
   otel: alloy-dashboards
-  # Source: grafana-clickhouse-datasource v4.17.0 plugin dashboards (patched — see manifests/clickhouse-dashboards-configmap.yaml)
+  # Sources (see manifests/clickhouse-dashboards-configmap.yaml for patches applied):
+  #   otel.json             — grafana/clickhouse-datasource v4.17.0 (opentelemetry-clickhouse.json)
+  #   cluster-analysis.json
+  #   data-analysis.json    — ClickHouse/clickhouse-grafana-datasource @ 8f09a42301d5
+  #   query-analysis.json
   clickhouse: clickhouse-dashboards
