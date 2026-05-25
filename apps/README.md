@@ -94,19 +94,25 @@ GET /ping  →  PONG
 
 **Build and deploy:**
 
-```bash
-# Build and push (requires Docker + registry access)
-cd k8s/apps/otel-go
-make push IMAGE=ghcr.io/<you>/otel-go TAG=latest
+Image tags are always the short git SHA (`git rev-parse --short HEAD`) — never `latest`.
 
-# Deploy workload
+```bash
+cd k8s/apps/otel-go
+
+# Option A — single-node k3s: build locally and import into containerd (no registry needed)
+make load IMAGE=ghcr.io/<you>/otel-go    # builds + streams into k3s ctr
+
+# Option B — push to ghcr.io (requires: echo $GITHUB_TOKEN | docker login ghcr.io -u <user> --password-stdin)
+make push IMAGE=ghcr.io/<you>/otel-go
+
+# Deploy (uses the same SHA tag automatically)
 make deploy DOMAIN=example.local
 
 # Wire into Alloy (hot-reload)
 kubectl apply -f ../../o11y/manifests/alloy-configmap.yaml
 
 # Generate traffic
-kubectl run -it --rm pinger --image=curlimages/curl --restart=Never -- \
+kubectl run -it --rm pinger --image=curlimages/curl:8.12.1 --restart=Never -- \
   sh -c 'for i in $(seq 1 30); do curl -s otel-go.otel-demo.svc.cluster.local:8080/ping; sleep 1; done'
 ```
 
@@ -129,6 +135,7 @@ kubectl exec -n o11y -l app.kubernetes.io/name=prometheus -- \
 **Swap exporters without rebuilding** — e.g. to debug locally with console output:
 
 ```bash
+SHA=$(git rev-parse --short HEAD)
 OTEL_TRACES_EXPORTER=console OTEL_METRICS_EXPORTER=console OTEL_LOGS_EXPORTER=console \
-  docker run --rm -p 8080:8080 -p 2112:2112 ghcr.io/<you>/otel-go:latest
+  docker run --rm -p 8080:8080 -p 2112:2112 ghcr.io/<you>/otel-go:${SHA}
 ```

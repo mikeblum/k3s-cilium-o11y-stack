@@ -1,23 +1,41 @@
-IMAGE  ?= ghcr.io/mblum/otel-go
-TAG    ?= latest
-NS     := otel-demo
-DOMAIN ?= example.local
+IMAGE   ?= ghcr.io/mblum/otel-go
+# Default tag is the short git SHA — never use 'latest'.
+# Override: make build TAG=v0.1.0
+TAG     := $(shell git rev-parse --short HEAD)
+NS      := otel-demo
+DOMAIN  ?= example.local
 
 APP_DIR := ../../../apps/otel-go
 
-.PHONY: build push deploy delete
+.PHONY: build load push deploy delete
 
-## build: Build the Docker image locally.
+## build: Build the Docker image with the current git SHA tag.
 build:
 	docker build -t $(IMAGE):$(TAG) $(APP_DIR)
 
-## push: Build and push the Docker image.
+## load: Build and import the image directly into k3s containerd.
+##
+## Use this on a single-node cluster to skip the push/pull round-trip.
+## No registry credentials required.
+##
+##   make load                                    # builds + imports in one step
+##   sudo k3s ctr images ls | grep otel-go        # verify
+load: build
+	docker save $(IMAGE):$(TAG) | sudo k3s ctr images import -
+
+## push: Build and push the image to ghcr.io (requires docker login).
+##
+##   echo $$GITHUB_TOKEN | docker login ghcr.io -u <user> --password-stdin
+##   make push
 push: build
 	docker push $(IMAGE):$(TAG)
 
-## deploy: Deploy the workload and wire it into the o11y stack.
+## deploy: Apply k8s manifests for the otel-demo workload.
 ##
-##   IMAGE=ghcr.io/you/otel-go TAG=latest DOMAIN=example.local make deploy
+## Run `make load` (local) or `make push` (registry) first, then:
+##
+##   make deploy                        # uses git SHA tag automatically
+##   make deploy DOMAIN=example.local
 ##
 ## After deploying, hot-reload Alloy so it starts scraping otel-go metrics:
 ##
@@ -25,7 +43,7 @@ push: build
 ##
 deploy:
 	kubectl apply -f namespace.yaml
-	IMAGE=$(IMAGE):$(TAG) envsubst '$${IMAGE}' < deployment.yaml | kubectl apply -f -
+	IMAGE=$(IMAGE):$(TAG) TAG=$(TAG) DOMAIN=$(DOMAIN) envsubst '$${IMAGE},$${TAG},$${DOMAIN}' < deployment.yaml | kubectl apply -f -
 	kubectl apply -f service.yaml
 	kubectl apply -f reference-grant.yaml
 	DOMAIN=$(DOMAIN) envsubst '$${DOMAIN}' < httproute.yaml | kubectl apply -f -

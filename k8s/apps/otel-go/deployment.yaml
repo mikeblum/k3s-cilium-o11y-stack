@@ -18,6 +18,9 @@ spec:
       containers:
         - name: otel-go
           image: ${IMAGE}
+          # IfNotPresent: works for both local k3s ctr import and ghcr.io SHA tags.
+          # Never use Always — that defeats pinned SHA builds.
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
@@ -29,8 +32,10 @@ spec:
             # ── OTel service identity ──────────────────────────────────────────
             - name: OTEL_SERVICE_NAME
               value: otel-go
+            # DOMAIN and TAG are injected at deploy time by the Makefile via envsubst.
+            # DOMAIN is auto-detected from hostname (e.g. mylab.local) — same as the rest of the stack.
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment=k3s-homelab,service.version=latest"
+              value: "deployment.environment=${DOMAIN},service.version=${TAG}"
             # ── Exporter selection (12-factor; swap without rebuild) ───────────
             # Traces and logs go to Alloy via OTLP gRPC → ch-writer → ClickHouse.
             # Metrics are exposed as a Prometheus endpoint scraped by Alloy.
