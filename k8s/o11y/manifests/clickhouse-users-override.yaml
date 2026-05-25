@@ -1,0 +1,23 @@
+---
+# Overrides the pascaliske chart's default-user.xml which restricts the 'default'
+# user to localhost (127.0.0.1/::1). The 'default' user needs to be reachable from
+# other pods in the cluster (ch-writer, Grafana datasource).
+#
+# In production you would create a dedicated user with a password instead.
+# For a LAN-only homelab, opening the default user to ::/0 is acceptable.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-users-override
+  namespace: o11y
+data:
+  00-network-override.xml: |
+    <clickhouse>
+      <users>
+        <default>
+          <networks>
+            <ip>::/0</ip>
+          </networks>
+        </default>
+      </users>
+    </clickhouse>

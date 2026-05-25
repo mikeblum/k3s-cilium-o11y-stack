@@ -33,6 +33,19 @@ persistentVolumeClaim:
   size: 50Gi
   storageClassName: ""   # uses k3s default (local-path)
 
+# The pascaliske chart's default-user.xml restricts the 'default' user to localhost.
+# Mount an override that opens network access from within the cluster (k8s pod CIDR).
+extraVolumes:
+  - name: users-override
+    configMap:
+      name: clickhouse-users-override
+
+extraVolumeMounts:
+  - name: users-override
+    mountPath: /etc/clickhouse-server/users.d/00-network-override.xml
+    subPath: 00-network-override.xml
+    readOnly: true
+
 resources:
   requests:
     memory: 512Mi

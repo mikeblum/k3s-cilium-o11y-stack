@@ -15,6 +15,7 @@ repos:
 
 install: repos
 	kubectl apply -f namespace.yaml
+	kubectl apply -f manifests/clickhouse-users-override.yaml
 	helm upgrade --install clickhouse  clickhouse/clickhouse            -n $(NS) -f values/clickhouse.yaml --version 1.0.0
 	helm upgrade --install prometheus  prometheus-community/prometheus  -n $(NS) -f values/prometheus.yaml
 	kubectl apply -f manifests/alloy-configmap.yaml
