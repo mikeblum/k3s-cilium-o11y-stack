@@ -11,7 +11,7 @@
 #   3. Update ACL — see acl-snippet.json
 
 operatorConfig:
-  hostname: ${TAILSCALE_TAILNET}   # appears in tailnet Machines list — set via TAILSCALE_TAILNET make var
+  hostname: k8s-operator  # appears in tailnet Machines list
 
 proxyConfig:
   defaultTags: "tag:k8s-ingress"  # applied to all ingress proxy nodes (comma-separated string, not list)
