@@ -99,16 +99,20 @@ Image tags are always the short git SHA (`git rev-parse --short HEAD`) — never
 ```bash
 cd k8s/apps/otel-go
 
-# Option A — single-node k3s: build locally and import into containerd (no registry needed)
-make load IMAGE=ghcr.io/<you>/otel-go    # builds + streams into k3s ctr
-
-# Option B — push to ghcr.io (requires: echo $GITHUB_TOKEN | docker login ghcr.io -u <user> --password-stdin)
-make push IMAGE=ghcr.io/<you>/otel-go
-
-# Deploy (uses the same SHA tag automatically)
+# Option A — local k3s (no registry):
+#   Builds as localhost/otel-go:<sha> and imports directly into k3s containerd.
+#   The localhost/ prefix tells containerd never to pull this from a remote registry.
+make load
 make deploy DOMAIN=example.local
 
-# Wire into Alloy (hot-reload)
+# Option B — ghcr.io:
+#   Tags the local image as ghcr.io/you/otel-go:<sha> and pushes it.
+#   Then deploy pointing at the remote image.
+echo $GITHUB_TOKEN | docker login ghcr.io -u <you> --password-stdin
+make push REMOTE_IMAGE=ghcr.io/<you>/otel-go
+make deploy DOMAIN=example.local IMAGE=ghcr.io/<you>/otel-go
+
+# Wire into Alloy (hot-reload, run once after first deploy)
 kubectl apply -f ../../o11y/manifests/alloy-configmap.yaml
 
 # Generate traffic
@@ -135,7 +139,8 @@ kubectl exec -n o11y -l app.kubernetes.io/name=prometheus -- \
 **Swap exporters without rebuilding** — e.g. to debug locally with console output:
 
 ```bash
+# Uses the locally-built image; no registry required.
 SHA=$(git rev-parse --short HEAD)
 OTEL_TRACES_EXPORTER=console OTEL_METRICS_EXPORTER=console OTEL_LOGS_EXPORTER=console \
-  docker run --rm -p 8080:8080 -p 2112:2112 ghcr.io/<you>/otel-go:${SHA}
+  docker run --rm -p 8080:8080 -p 2112:2112 localhost/otel-go:${SHA}
 ```
