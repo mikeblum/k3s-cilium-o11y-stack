@@ -1,10 +1,10 @@
-# Grafana 13.0.0 — pinned at GrafanaCON2026 release
+# Grafana 13.0.1 — Grafana 13 stable (security-patched)
 # Served at / — host-based routing via Envoy (grafana.<domain>)
 # and Tailscale Ingress (grafana.<tailnet>.ts.net).
 # No GF_SERVER_ROOT_URL or GF_SERVER_SERVE_FROM_SUB_PATH needed.
 
 image:
-  tag: "13.0.0"
+  tag: "13.0.1"
 
 plugins:
   - grafana-clickhouse-datasource
