@@ -1,0 +1,29 @@
+# HTTPRoute for otel-go — host-based, HTTPS, LAN access via Envoy Gateway.
+#
+# LAN: add to /etc/hosts on your desktop:
+#   <host-ip>  otel-go.${DOMAIN}
+#
+# Test from LAN:
+#   curl -k https://otel-go.example.local/ping    # → PONG
+#
+# Template variable ${DOMAIN} is substituted at deploy time via envsubst.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: otel-go
+  namespace: otel-demo
+spec:
+  parentRefs:
+    - name: cluster-ingress
+      namespace: envoy-gateway-system
+      sectionName: https
+  hostnames:
+    - otel-go.${DOMAIN}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: otel-go
+          port: 8080

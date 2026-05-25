@@ -56,10 +56,16 @@ data:
     }
 
     // ── Go service /metrics scraping ──────────────────────────────────────────
-    // Add targets as services are deployed.
-    // Example: { __address__ = "my-service.default.svc.cluster.local:2112" }
+    // To add a new service: append an entry to the targets list below and
+    // kubectl apply -f alloy-configmap.yaml  (hot-reloads, no restart needed).
+    // Do NOT create a second prometheus.scrape "go_services" block — Alloy
+    // rejects duplicate component names.
+    //
+    // Example entry: { __address__ = "myapp.myns.svc.cluster.local:2112", job = "myapp" }
     prometheus.scrape "go_services" {
-      targets         = []
+      targets = [
+        { __address__ = "otel-go.otel-demo.svc.cluster.local:2112", job = "otel-go" },
+      ]
       scrape_interval = "15s"
       forward_to      = [prometheus.remote_write.local.receiver]
     }
