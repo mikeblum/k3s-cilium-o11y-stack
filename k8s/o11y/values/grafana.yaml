@@ -22,7 +22,7 @@ grafana.ini:
     disable_login_form: true      # Tailscale is the auth boundary; no second login needed
 
 plugins:
-  - grafana-clickhouse-datasource
+  - grafana-clickhouse-datasource 4.17.0   # pinned — bump alongside chart upgrades
 
 sidecar:
   datasources:
@@ -53,14 +53,19 @@ dashboardProviders:
         allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/otel
+      - name: clickhouse
+        folder: ClickHouse
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/clickhouse
 
 # Dashboards downloaded at pod startup by the download-dashboards init container.
 # Top-level key must match a provider name above; each entry maps to one JSON file
 # at /var/lib/grafana/dashboards/<provider>/<key>.json.
 #
-# OTel dashboards come from dashboardsConfigMaps below (official Alloy mixin JSON,
-# no grafana.com gnetId).  ClickHouse-backed trace/log dashboards are bundled in
-# the plugin — import via: Connections → Data Sources → ClickHouse → Dashboards tab
+# OTel and ClickHouse dashboards come from dashboardsConfigMaps below (no grafana.com gnetId).
 dashboards:
   cilium:
     # Cilium 1.12 dashboards — metric names are stable through 1.17.
@@ -92,6 +97,8 @@ dashboards:
 # ConfigMap-backed dashboards (no grafana.com gnetId).
 # Key = provider name; value = ConfigMap name in the same namespace.
 # The helm chart mounts the ConfigMap at /var/lib/grafana/dashboards/<provider>/.
-# Source: https://github.com/grafana/alloy/tree/main/operations/alloy-mixin/rendered/dashboards
 dashboardsConfigMaps:
+  # Source: https://github.com/grafana/alloy/tree/main/operations/alloy-mixin/rendered/dashboards
   otel: alloy-dashboards
+  # Source: grafana-clickhouse-datasource v4.17.0 plugin dashboards (patched — see manifests/clickhouse-dashboards-configmap.yaml)
+  clickhouse: clickhouse-dashboards
