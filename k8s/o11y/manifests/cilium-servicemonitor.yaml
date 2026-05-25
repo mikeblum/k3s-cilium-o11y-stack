@@ -1,0 +1,20 @@
+# Scrapes cilium-operator (Deployment, not per-node).
+# cilium-agent (:9962) and hubble (:9965) are scraped directly by the
+# Alloy DaemonSet via localhost targets in alloy-configmap.yaml.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cilium-operator
+  namespace: o11y
+  labels:
+    release: prometheus   # must match prometheus.serviceMonitorSelector in values/prometheus.yaml
+spec:
+  namespaceSelector:
+    matchNames: [kube-system]
+  selector:
+    matchLabels:
+      io.cilium/app: operator
+  endpoints:
+    - port: prometheus
+      interval: 30s
+      path: /metrics

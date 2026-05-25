@@ -1,0 +1,5 @@
+# Tailscale OAuth credentials — never commit
+k8s/tailscale/values.secret.yaml
+
+# mkcert generated cert files — never commit private keys
+k8s/tls/certs/

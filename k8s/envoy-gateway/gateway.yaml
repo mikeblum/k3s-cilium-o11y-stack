@@ -1,0 +1,51 @@
+# Envoy Gateway — cluster-ingress
+#
+# Listeners:
+#   http  (:80)  — redirects all traffic to HTTPS
+#   https (:443) — terminates TLS with mkcert wildcard cert for *.example.local
+#
+# The TLS Secret (${TLS_SECRET}) is created by k8s/tls/mkcert-setup.sh.
+# It must exist in envoy-gateway-system before applying this manifest.
+#
+# Apply order:
+#   1. cd k8s/tls && make install       (creates the Secret)
+#   2. kubectl apply -f k8s/envoy-gateway/gateway.yaml
+#   3. kubectl apply -f k8s/o11y/manifests/gateway-routes.yaml
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-gateway
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cluster-ingress
+  namespace: envoy-gateway-system
+spec:
+  gatewayClassName: envoy-gateway
+  listeners:
+
+    # HTTP listener — redirect only, no backend traffic
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+
+    # HTTPS listener — TLS terminated here with mkcert wildcard cert
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: ${TLS_SECRET}   # created by k8s/tls/mkcert-setup.sh
+            namespace: envoy-gateway-system
+      allowedRoutes:
+        namespaces:
+          from: All

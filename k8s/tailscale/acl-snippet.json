@@ -1,0 +1,17 @@
+{
+  "_comment": "Merge this into your tailnet ACL policy at https://login.tailscale.com/admin/acls",
+
+  "tagOwners": {
+    "tag:k8s-operator": ["autogroup:admin"],
+    "tag:k8s-ingress":  ["autogroup:admin"]
+  },
+
+  "acls": [
+    {
+      "_comment": "Allow all tailnet members to reach k8s-ingress proxies",
+      "action": "accept",
+      "src":    ["autogroup:members"],
+      "dst":    ["tag:k8s-ingress:*"]
+    }
+  ]
+}
