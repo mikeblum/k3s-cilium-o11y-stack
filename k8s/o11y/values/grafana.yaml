@@ -1,9 +1,10 @@
 # Grafana 13.0.1 — Grafana 13 stable (security-patched)
 #
-# Auth: login form disabled; anonymous access granted as Admin.
+# Auth: anonymous access granted as Admin (matches the Grafana all-in-one
+# / otel-lgtm quickstart, which sets GF_AUTH_ANONYMOUS_ORG_ROLE=Admin).
 # Tailscale membership is the auth boundary — only tailnet members can
-# reach this instance, so a second login prompt adds friction with no
-# security benefit.
+# reach this instance. The login form stays enabled so you can still sign
+# in with the admin credentials when you need a named session.
 
 image:
   tag: "13.0.1"
@@ -15,11 +16,8 @@ grafana.ini:
     reporting_enabled: false
   auth.anonymous:
     enabled: true
-    org_role: Viewer              # Grafana 13: Admin is no longer supported for anonymous; use auto_assign_org_role below
-  users:
-    auto_assign_org_role: Admin   # all users (including anonymous) get Admin role in the default org
-  auth:
-    disable_login_form: true      # Tailscale is the auth boundary; no second login needed
+    org_role: Admin               # anonymous tailnet users get full Admin; Admin IS a valid anonymous role
+                                   # (auto_assign_org_role does NOT apply to anonymous users — must set it here)
 
 plugins:
   - grafana-clickhouse-datasource
