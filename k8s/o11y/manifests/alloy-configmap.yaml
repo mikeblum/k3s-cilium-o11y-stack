@@ -73,6 +73,20 @@ data:
       forward_to      = [prometheus.remote_write.local.receiver]
     }
 
+    // ── Alloy self-monitoring (node-local :12345) ────────────────────────────
+    // Feeds the Alloy mixin dashboards (alloy_resources_*, otelcol_*, alloy_*).
+    // instance = node hostname so each DaemonSet pod stays a distinct series
+    // instead of colliding on "localhost:12345".
+    prometheus.scrape "alloy" {
+      targets = [{
+        __address__ = "localhost:12345",
+        instance    = constants.hostname,
+      }]
+      job_name        = "alloy"
+      scrape_interval = "15s"
+      forward_to      = [prometheus.remote_write.local.receiver]
+    }
+
     // ── Prometheus remote write (Cilium + Hubble + scraped metrics) ───────────
     prometheus.remote_write "local" {
       endpoint {
