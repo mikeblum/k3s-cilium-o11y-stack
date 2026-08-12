@@ -5,13 +5,18 @@ data:
        "annotations": {
           "list": [
              {
-                "datasource": "$loki_datasource",
+                "datasource": {
+                   "type": "grafana-clickhouse-datasource",
+                   "uid": "${logs_datasource}"
+                },
                 "enable": true,
-                "expr": "{cluster=~\"$cluster\", container=\"kube-diff-logger\"} | json | namespace_extracted=\"alloy\" | name_extracted=~\"alloy.*\"",
                 "iconColor": "rgba(0, 211, 255, 1)",
-                "instant": false,
                 "name": "Deployments",
-                "titleFormat": "{{cluster}}/{{namespace}}"
+                "target": {
+                   "queryType": "table",
+                   "rawSql": "SELECT Timestamp AS time, Body AS text, ServiceName AS tags FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName ILIKE '%alloy%' ORDER BY Timestamp"
+                },
+                "titleFormat": "{{ServiceName}}"
              }
           ]
        },
@@ -476,9 +481,9 @@ data:
                 "type": "datasource"
              },
              {
-                "label": "Loki Data Source",
-                "name": "loki_datasource",
-                "query": "loki",
+                "label": "Logs Data Source",
+                "name": "logs_datasource",
+                "query": "grafana-clickhouse-datasource",
                 "refresh": 1,
                 "sort": 2,
                 "type": "datasource"
@@ -1343,9 +1348,9 @@ data:
                 "type": "datasource"
              },
              {
-                "label": "Loki Data Source",
-                "name": "loki_datasource",
-                "query": "loki",
+                "label": "Logs Data Source",
+                "name": "logs_datasource",
+                "query": "grafana-clickhouse-datasource",
                 "refresh": 1,
                 "sort": 2,
                 "type": "datasource"
@@ -2837,9 +2842,9 @@ data:
                 "type": "datasource"
              },
              {
-                "label": "Loki Data Source",
-                "name": "loki_datasource",
-                "query": "loki",
+                "label": "Logs Data Source",
+                "name": "logs_datasource",
+                "query": "grafana-clickhouse-datasource",
                 "refresh": 1,
                 "sort": 2,
                 "type": "datasource"
@@ -2948,13 +2953,18 @@ data:
        "annotations": {
           "list": [
              {
-                "datasource": "$loki_datasource",
+                "datasource": {
+                   "type": "grafana-clickhouse-datasource",
+                   "uid": "${logs_datasource}"
+                },
                 "enable": true,
-                "expr": "{cluster=~\"$cluster\", container=\"kube-diff-logger\"} | json | namespace_extracted=\"alloy\" | name_extracted=~\"alloy.*\"",
                 "iconColor": "rgba(0, 211, 255, 1)",
-                "instant": false,
                 "name": "Deployments",
-                "titleFormat": "{{cluster}}/{{namespace}}"
+                "target": {
+                   "queryType": "table",
+                   "rawSql": "SELECT Timestamp AS time, Body AS text, ServiceName AS tags FROM otel.otel_logs WHERE $__timeFilter(Timestamp) AND ServiceName ILIKE '%alloy%' ORDER BY Timestamp"
+                },
+                "titleFormat": "{{ServiceName}}"
              }
           ]
        },
@@ -3191,9 +3201,9 @@ data:
                 "type": "datasource"
              },
              {
-                "label": "Loki Data Source",
-                "name": "loki_datasource",
-                "query": "loki",
+                "label": "Logs Data Source",
+                "name": "logs_datasource",
+                "query": "grafana-clickhouse-datasource",
                 "refresh": 1,
                 "sort": 2,
                 "type": "datasource"
