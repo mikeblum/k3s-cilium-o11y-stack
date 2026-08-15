@@ -1,0 +1,21 @@
+---
+version: "2"
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (github.com/ClickHouse/clickhouse-go/v2/lib/driver.Conn).Close
+        - (github.com/ClickHouse/clickhouse-go/v2/lib/driver.Rows).Close
+        - (*text/tabwriter.Writer).Flush
+        - fmt.Fprintln
+formatters:
+  enable:
+    - gofmt

@@ -23,7 +23,8 @@ export KUBECONFIG
         tls-install tls-check-expiry \
         gateway-install gateway-apply \
         o11y-install o11y-uninstall o11y-status o11y-routes \
-        tailscale-install tailscale-status
+        tailscale-install tailscale-status \
+        cli-build cli-install cli-test cli-port-forward spend
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,11 @@ help:
 	@echo "  make gateway-apply        Apply cluster-ingress Gateway + GatewayClass"
 	@echo "  make o11y-install         Install full o11y stack (Helm + manifests)"
 	@echo "  make tailscale-install    Install Tailscale operator + ingress resources"
+	@echo ""
+	@echo "Reporting (cli/ — Claude Code spend from ClickHouse):"
+	@echo "  make cli-port-forward     Forward ClickHouse native TCP (9000); leave running"
+	@echo "  make cli-install          Build otel-clickhouse-stack into GOBIN"
+	@echo "  make spend                Report the last 7 days of tokens + cost"
 	@echo ""
 
 # ─── ip ─────────────────────────────────────────────────────────────────────
@@ -137,3 +143,22 @@ tailscale-install:
 
 tailscale-status:
 	@$(MAKE) -C k8s/tailscale status
+
+# ─── CLI ─────────────────────────────────────────────────────────────────────
+# Reads ClickHouse over the native protocol, which no Gateway route exposes —
+# run cli-port-forward in another shell first.
+
+cli-build:
+	@$(MAKE) -C cli build
+
+cli-install:
+	@$(MAKE) -C cli install
+
+cli-test:
+	@$(MAKE) -C cli test
+
+cli-port-forward:
+	@$(MAKE) -C k8s/o11y pf-clickhouse-native
+
+spend:
+	@$(MAKE) -C cli run
