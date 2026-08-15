@@ -4,9 +4,9 @@
 #
 # In-cluster workloads use otelcol.o11y.svc.cluster.local:4317 instead.
 #
-# Backend is servicePort 4320 (otlp/external), NOT the in-cluster 4318.
-# Senders must use OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf — the ingress
-# terminates TLS and proxies HTTP, so gRPC is not reachable here.
+# Backend is the collector's standard OTLP/HTTP port. Senders must use
+# OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf — the ingress terminates TLS and
+# proxies HTTP, so 4317 (gRPC) is not reachable this way.
 #
 # Unauthenticated: tailnet membership is the auth boundary, same as Grafana.
 # First connection takes 30-60s while Let's Encrypt issues the cert.
@@ -28,7 +28,7 @@ spec:
               service:
                 name: otelcol
                 port:
-                  number: 4320
+                  number: 4318
   tls:
     - hosts:
         - otlp
