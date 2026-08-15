@@ -8,7 +8,7 @@
 #   grafana      — the Grafana ClickHouse datasource (read-only)
 #
 # `default` stays locked to localhost. Keep it that way — an unauthenticated
-# superuser reachable from any pod is not worth the convenience.
+# superuser reachable from any pod is not ideal.
 #
 # Passwords are SHA-256 hashes here and plaintext in the clickhouse-auth
 # Secret (see secrets.example.yaml) — ClickHouse reads this file, the
@@ -17,9 +17,7 @@
 #
 #   printf '%s' 'your-password' | sha256sum
 #
-# The chart mounts this ConfigMap with subPath, which kubelet never refreshes.
-# ClickHouse hot-reloads users.d, but it will never see an edit here until the
-# pod is replaced — `kubectl apply` alone is a no-op:
+# After any tweaks to this file re-install with:
 #
 #   kubectl rollout restart statefulset/clickhouse -n o11y
 apiVersion: v1
@@ -31,13 +29,7 @@ data:
   00-network-override.xml: |
     <clickhouse>
       <profiles>
-        <!-- Read-only for a BI client, not ClickHouse's built-in `readonly`
-             profile. That one is readonly=1, which also forbids changing any
-             setting — and the Grafana ClickHouse plugin sends max_execution_time
-             with every query, so each panel fails with:
-               Code: 164 ... Cannot modify 'max_execution_time' in readonly mode
-             readonly=2 permits setting changes while still rejecting INSERT and
-             DDL. -->
+        <!-- readonly=2 permits setting changes while still rejecting INSERT and DDL. -->
         <readonly_grafana>
           <readonly>2</readonly>
         </readonly_grafana>
