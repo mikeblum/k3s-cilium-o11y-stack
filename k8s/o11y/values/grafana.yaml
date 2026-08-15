@@ -62,10 +62,21 @@ dashboardProviders:
         allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/otel
+      - name: host
+        folder: Host
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/host
 
 # Dashboards downloaded from grafana.com at pod startup by the
 # download-dashboards init container. Top-level key must match a provider name
 # above; each entry becomes /var/lib/grafana/dashboards/<provider>/<key>.json.
+#
+# Renaming a key strands the old JSON on the PVC. Two files sharing a gnetId
+# duplicate a dashboard UID, and Grafana then revokes write permission for the
+# whole provider — rm the stale file from /var/lib/grafana/dashboards/<provider>/.
 #
 # All of these are PromQL against the `prometheus` datasource. ClickHouse-backed
 # log/trace dashboards ship inside the plugin instead — import them via
@@ -105,3 +116,11 @@ dashboards:
       datasource:
         - name: DS_PROMETHEUS
           value: prometheus
+
+  host:
+    # Panels group by `instance`, which the scrape job relabels to the node name.
+    # No `datasource:` unlike the entries above — since revision 42 this
+    # dashboard picks a prometheus datasource itself, with no input to substitute.
+    node-exporter:
+      gnetId: 1860          # Node Exporter Full
+      revision: 45

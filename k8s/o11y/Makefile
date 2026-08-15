@@ -5,6 +5,8 @@ HELM_REPOS := \
 	prometheus-community=https://prometheus-community.github.io/helm-charts
 
 NS         := o11y
+# The one namespace allowed host access. See namespace.yaml.
+NODEEXP_NS := node-exporter
 DOMAIN     ?= example.local
 
 .PHONY: repos install uninstall status routes secrets
@@ -30,6 +32,7 @@ CH_VERSION      := 1.0.0
 PROM_VERSION    := 29.24.0
 OTELCOL_VERSION := 0.166.0
 GRAFANA_VERSION := 10.5.15
+NODEEXP_VERSION := 4.56.1
 
 install: repos secrets
 	kubectl apply -f namespace.yaml
@@ -37,6 +40,7 @@ install: repos secrets
 	kubectl apply -f manifests/clickhouse-users-override.yaml
 	helm upgrade --install clickhouse    clickhouse/clickhouse                        -n $(NS) -f values/clickhouse.yaml       --version $(CH_VERSION)
 	helm upgrade --install prometheus    prometheus-community/prometheus              -n $(NS) -f values/prometheus.yaml       --version $(PROM_VERSION)
+	helm upgrade --install node-exporter prometheus-community/prometheus-node-exporter -n $(NODEEXP_NS) -f values/node-exporter.yaml --version $(NODEEXP_VERSION)
 	helm upgrade --install otelcol       open-telemetry/opentelemetry-collector       -n $(NS) -f values/otel-collector.yaml   --version $(OTELCOL_VERSION)
 	helm upgrade --install grafana       grafana/grafana                              -n $(NS) -f values/grafana.yaml          --version $(GRAFANA_VERSION)
 	kubectl apply -f manifests/grafana-datasources-configmap.yaml
@@ -45,11 +49,13 @@ install: repos secrets
 
 uninstall:
 	helm uninstall grafana prometheus otelcol clickhouse -n $(NS) || true
+	helm uninstall node-exporter -n $(NODEEXP_NS) || true
 	kubectl delete -f manifests/ --ignore-not-found
-	kubectl delete namespace $(NS) --ignore-not-found
+	kubectl delete namespace $(NS) $(NODEEXP_NS) --ignore-not-found
 
 status:
 	kubectl get pods -n $(NS)
+	kubectl get pods -n $(NODEEXP_NS)
 
 routes:
 	kubectl get httproute -n $(NS)

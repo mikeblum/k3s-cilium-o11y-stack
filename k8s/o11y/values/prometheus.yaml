@@ -2,7 +2,8 @@
 #
 # Two things write here:
 #   1. The OTel Collector, via remote_write — Cilium, Hubble, cilium-operator,
-#      and the collector's own :8888 self-metrics (values/otel-collector.yaml).
+#      node-exporter, and the collector's own :8888 self-metrics
+#      (values/otel-collector.yaml).
 #   2. Prometheus itself, via the node-level scrape jobs left enabled below.
 #
 # App telemetry does NOT come here; it goes to ClickHouse via the collector.
@@ -27,7 +28,10 @@ serviceMonitorSelector:
 alertmanager:
   enabled: false          # no alerting configured
 prometheus-node-exporter:
-  enabled: false          # never schedulable here; nothing queried it
+  enabled: false          # not unused — own release in the `node-exporter`
+                          # namespace. As a subchart it lands in o11y, where
+                          # `enforce: baseline` makes it run zero pods, silently.
+                          # See values/node-exporter.yaml.
 prometheus-pushgateway:
   enabled: false          # nothing pushes to it
 kube-state-metrics:

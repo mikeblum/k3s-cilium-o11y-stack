@@ -36,7 +36,8 @@ This observability stack is opinionated in that eBPF is The Way ™️ for obser
 | [Envoy Gateway](https://gateway.envoyproxy.io) | Ingress | Kubernetes Gateway API controller; routes HTTPS subdomains to in-cluster services | internal |
 | [mkcert](https://github.com/FiloSottile/mkcert) | TLS | [@FiloSottile](https://github.com/FiloSottile)'s excellent tool for bringing https to `localhost` | setup CLI |
 | [Prometheus](https://prometheus.io) | Observability | Time-series store for infra metrics; backs the Cilium dashboards | internal |
-| [OTel Collector](https://opentelemetry.io/docs/collector/) | Observability | Receives OTLP → ClickHouse; scrapes Cilium/Hubble → Prometheus | `:4317/:4318` |
+| [OTel Collector](https://opentelemetry.io/docs/collector/) | Observability | Receives OTLP → ClickHouse; scrapes Cilium/Hubble/host → Prometheus | `:4317/:4318` |
+| [node-exporter](https://github.com/prometheus/node_exporter) | Observability | Host metrics for the node itself — CPU, memory, disk, filesystem, network | internal |
 | [ClickHouse](https://clickhouse.com) | Observability | OLAP database; backend store for logs, traces, and metrics | internal |
 | [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse | `grafana.<domain>` |
 | [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS | — |
@@ -63,16 +64,16 @@ Data plane ─ how telemetry flows
    Cilium · Hubble ◀──── scrape ──┤                       │
                                   └──remote_write──▶ Prometheus
                                                           ▲
-                              apiserver · nodes · cadvisor ┘
-                              kube-state-metrics
+                     apiserver · nodes · cadvisor · node-exporter ┘
+                     kube-state-metrics
 ```
 
 **Metrics live in two stores.** Panels return empty rather than erroring when
 you query the wrong one:
 
 - **Prometheus** (`prometheus` datasource, PromQL) — Cilium, Hubble,
-  cilium-operator, collector self-metrics, apiserver, nodes, cadvisor,
-  kube-state-metrics.
+  cilium-operator, collector self-metrics, node-exporter, apiserver, nodes,
+  cadvisor, kube-state-metrics.
 - **ClickHouse** (`clickhouse` datasource, SQL) — everything arriving over OTLP:
   app logs, traces, and metrics.
 

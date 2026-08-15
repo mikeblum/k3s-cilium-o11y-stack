@@ -77,8 +77,8 @@ config:
         http:
           endpoint: 0.0.0.0:4318
 
-    # Cilium/Hubble/operator scraping. Kubernetes SD (pod role) rather than
-    # localhost — the DaemonSet happens to be node-local today, but SD keeps
+    # Cilium/Hubble/operator and host scraping. Kubernetes SD (pod role) rather
+    # than localhost — the DaemonSet happens to be node-local today, but SD keeps
     # this correct if the collector ever moves to a Deployment.
     prometheus/scrape:
       config:
@@ -121,6 +121,26 @@ config:
                   - __meta_kubernetes_pod_container_port_name
                 regex: operator;prometheus
                 action: keep
+
+          # The homelab host — CPU, load, memory, disk, filesystem, network.
+          # node-exporter lives in its own namespace because o11y's
+          # `enforce: baseline` forbids the host access it needs (namespace.yaml).
+          # It runs hostNetwork, so relabel `instance` off the node IP to the
+          # node name: dashboards key on it, and it survives pod restarts.
+          - job_name: node-exporter
+            scrape_interval: 15s
+            kubernetes_sd_configs:
+              - role: pod
+                namespaces:
+                  names: [node-exporter]
+            relabel_configs:
+              - source_labels:
+                  - __meta_kubernetes_pod_label_app_kubernetes_io_name
+                  - __meta_kubernetes_pod_container_port_name
+                regex: prometheus-node-exporter;metrics
+                action: keep
+              - source_labels: [__meta_kubernetes_pod_node_name]
+                target_label: instance
 
           # Placeholder for app metrics scraped over plain Prometheus.
           # Apps that speak OTLP should push to this collector instead — see

@@ -4,3 +4,13 @@ metadata:
   name: o11y
   labels:
     pod-security.kubernetes.io/enforce: baseline
+---
+# node-exporter reads the host, so it needs hostNetwork, hostPID, hostPath
+# (/proc, /sys, /) and hostPort — all rejected by `baseline`. It gets its own
+# namespace rather than relaxing o11y. Nothing else belongs here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: node-exporter
+  labels:
+    pod-security.kubernetes.io/enforce: privileged

@@ -100,6 +100,12 @@ prometheus-server-xxxxx          2/2  Running   # + configmap-reload sidecar
 prometheus-kube-state-metrics-x  1/1  Running
 ```
 
+Plus one pod in the `node-exporter` namespace, which `make o11y-status` also prints:
+
+```
+node-exporter-prometheus-node-exporter-xxxxx  1/1  Running   # DaemonSet
+```
+
 ### 6. Tailscale
 
 > **Complete the admin console steps before running `make install`** — the OAuth client requires the tags to exist in the ACL first.
