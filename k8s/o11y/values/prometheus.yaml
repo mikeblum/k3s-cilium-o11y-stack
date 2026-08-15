@@ -1,3 +1,12 @@
+# Prometheus — metrics store for infra telemetry.
+#
+# Two things write here:
+#   1. The OTel Collector, via remote_write — Cilium, Hubble, cilium-operator,
+#      and the collector's own :8888 self-metrics (values/otel-collector.yaml).
+#   2. Prometheus itself, via the node-level scrape jobs left enabled below.
+#
+# App telemetry does NOT come here; it goes to ClickHouse via the collector.
+
 server:
   retention: 90d
   persistentVolume:
@@ -5,18 +14,49 @@ server:
     size: 20Gi
 
   extraFlags:
-    - web.enable-remote-write-receiver  # Alloy pushes Cilium + scraped metrics here
+    - web.enable-remote-write-receiver  # required — the collector pushes here
     - web.enable-lifecycle
 
 serviceMonitorSelector:
   matchLabels:
     release: prometheus
 
-# Alloy handles all scraping — disable Prometheus's own scrapers
-# to avoid double-counting Cilium metrics
-kubeStateMetrics:
-  enabled: false
-nodeExporter:
-  enabled: false
+# --- Bundled subcharts -------------------------------------------------------
+# These keys are the SUBCHART names and must match exactly. `kubeStateMetrics:`
+# and `nodeExporter:` are silently ignored.
 alertmanager:
-  enabled: false
+  enabled: false          # no alerting configured
+prometheus-node-exporter:
+  enabled: false          # never schedulable here; nothing queried it
+prometheus-pushgateway:
+  enabled: false          # nothing pushes to it
+kube-state-metrics:
+  enabled: true           # kube_* object metrics; safe to disable for a leaner install
+
+# --- Scrape jobs -------------------------------------------------------------
+# The collector owns scraping (values/otel-collector.yaml). The chart's
+# annotation-driven jobs are off because Cilium sets prometheus.io/scrape, and
+# leaving them on stores every cilium/hubble series twice under two `job` labels.
+#
+# Add new scrape targets to the collector, NOT here.
+# Still enabled: kubernetes-api-servers, kubernetes-nodes,
+# kubernetes-nodes-cadvisor, prometheus.
+scrapeConfigs:
+  kubernetes-pods:
+    enabled: false
+  kubernetes-pods-slow:
+    enabled: false
+  kubernetes-service-endpoints:
+    enabled: false
+  kubernetes-service-endpoints-slow:
+    enabled: false
+  kubernetes-services:            # blackbox-probe job; no blackbox exporter here
+    enabled: false
+  prometheus-pushgateway:         # subchart disabled above
+    enabled: false
+
+  # Reached via the annotation job before it was disabled; named explicitly here.
+  kube-state-metrics:
+    static_configs:
+      - targets:
+          - prometheus-kube-state-metrics.o11y.svc.cluster.local:8080

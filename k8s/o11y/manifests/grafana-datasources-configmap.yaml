@@ -25,6 +25,9 @@ data:
           host: clickhouse.o11y.svc.cluster.local
           port: 9000
           protocol: native
+          # The 'default' user is locked to localhost; 'grafana' is the read-only
+          # user from manifests/clickhouse-users-override.yaml.
+          username: grafana
           defaultDatabase: otel
           logs:
             defaultDatabase: otel
@@ -36,3 +39,7 @@ data:
             defaultTable: otel_traces
             otelEnabled: true
             durationUnit: nanoseconds
+        secureJsonData:
+          # Grafana expands $__env{} in provisioning files; the var is wired to the
+          # clickhouse-auth Secret by envValueFrom in values/grafana.yaml.
+          password: $__env{CLICKHOUSE_GRAFANA_PASSWORD}

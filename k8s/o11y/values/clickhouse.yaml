@@ -24,7 +24,7 @@ ports:
     port: 8123   # HTTP interface (used by Grafana datasource)
   rpc:
     enabled: true
-    port: 9000   # Native TCP protocol (used by ch-writer + Grafana datasource)
+    port: 9000   # Native TCP protocol (used by the OTel Collector + Grafana datasource)
 
 persistentVolumeClaim:
   create: true
