@@ -146,7 +146,7 @@ cp values.secret.yaml.example values.secret.yaml
 make install
 ```
 
-Verify proxy pods come up (one per Ingress):
+Verify proxy pods come up (one per Ingress, plus one per exposed Service):
 
 ```bash
 cd k8s/tailscale && make status

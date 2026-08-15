@@ -14,12 +14,12 @@ export CLAUDE_CODE_ENABLE_TELEMETRY=1
 export OTEL_METRICS_EXPORTER=otlp
 export OTEL_LOGS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
 ```
 
-`http/protobuf` matches the endpoint: `otlp.<tailnet>.ts.net` is a Tailscale
-Ingress, which proxies HTTP and so cannot carry gRPC. There is a gRPC endpoint
-too — see [Other OTLP producers](#other-otlp-producers).
+`http://`, not `https://` — the endpoint is a Layer 3 Tailscale proxy with no
+certificate to terminate. WireGuard encrypts it; tailnet membership is the auth
+boundary. gRPC works too, on `:4317` of the same name.
 
 Start a session, send a prompt, then verify:
 
@@ -90,24 +90,23 @@ Nothing here is Claude Code specific. Any OTLP client can use the same endpoint:
 
 ```bash
 export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
 export OTEL_SERVICE_NAME=my-app
 ```
 
-Or gRPC, on a second tailnet name:
+Or gRPC, same name, other port:
 
 ```bash
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp-grpc.<tailnet>.ts.net:4317
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4317
 export OTEL_SERVICE_NAME=my-app
 ```
 
-Two endpoints because the Tailscale operator exposes them differently. The HTTPS
-one is an Ingress: Layer 7, `tailscale serve`, HTTPS with a Let's Encrypt cert,
-HTTP only. The gRPC one is a `loadBalancerClass: tailscale` Service: Layer 3,
-raw TCP, so it carries HTTP/2 end to end — but has no certificate, hence the
-`http://` scheme. WireGuard encrypts it either way and tailnet membership is
-the auth boundary for both. See `k8s/tailscale/manifests/`.
+Both work because the endpoint is a `loadBalancerClass: tailscale` Service —
+the operator's Layer 3 proxy, DNAT over raw TCP, so it carries HTTP/2 end to
+end. An Ingress would be Layer 7 (`tailscale serve`, HTTP only) and could not
+serve gRPC at all. The cost of one name for both is TLS: Layer 3 has no cert,
+hence `http://` and explicit ports. See `k8s/tailscale/manifests/service-otlp.yaml`.
 
 `OTEL_SERVICE_NAME` becomes the `ServiceName` column — set it per producer.
 
