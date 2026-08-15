@@ -1,0 +1,39 @@
+# node-exporter — metrics for the homelab host itself: CPU, load, memory, disk
+# I/O, filesystem usage, network, and uptime.
+#
+# Installed as its own release in the o11y-host namespace rather than as the
+# Prometheus chart's bundled subchart. The subchart lands in o11y, whose
+# `enforce: baseline` PodSecurity label rejects every host access node-exporter
+# needs — the DaemonSet is admitted and then silently creates zero pods. See
+# namespace.yaml.
+#
+# Prometheus does not scrape this. The collector does, via the `node-exporter`
+# job in values/otel-collector.yaml, and remote-writes it to Prometheus like
+# every other infra metric.
+#
+# Chart version is pinned in the Makefile.
+
+# One pod per node, on the host's own network namespace so the network and
+# socket stats it reports are the host's, not a pod sandbox's.
+hostNetwork: true
+hostPID: true
+
+service:
+  # The collector discovers pods, not Services — this exists only so the port
+  # is named `metrics`, which the scrape job's relabel rule matches on.
+  enabled: true
+  port: 9100
+  targetPort: 9100
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# Run everywhere, including any node a homelab might taint (control-plane,
+# storage). A node that is not scraped is the one whose disk fills up.
+tolerations:
+  - operator: Exists

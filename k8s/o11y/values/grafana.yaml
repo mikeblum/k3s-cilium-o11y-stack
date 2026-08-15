@@ -62,6 +62,13 @@ dashboardProviders:
         allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/otel
+      - name: host
+        folder: Host
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/host
 
 # Dashboards downloaded from grafana.com at pod startup by the
 # download-dashboards init container. Top-level key must match a provider name
@@ -102,6 +109,17 @@ dashboards:
     otel-collector:
       gnetId: 15983         # OpenTelemetry Collector
       revision: 30
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus
+
+  host:
+    # node-exporter, scraped by the collector from the o11y-host namespace.
+    # Panels group by `instance`, which the scrape job relabels to the node
+    # name — see values/otel-collector.yaml.
+    node-exporter-full:
+      gnetId: 1860          # Node Exporter Full
+      revision: 41
       datasource:
         - name: DS_PROMETHEUS
           value: prometheus
