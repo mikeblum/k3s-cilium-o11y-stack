@@ -17,8 +17,10 @@ export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
 ```
 
-`http/protobuf` above is not a preference — the Tailscale ingress terminates TLS
-and proxies HTTP, so OTLP/gRPC is unreachable over the tailnet.
+`http/protobuf` above is not a preference — this endpoint is a Tailscale Ingress,
+which proxies HTTP. The collector does listen on 4317, but reaching gRPC over the
+tailnet needs the operator's Layer 3 mode (a `loadBalancerClass: tailscale`
+Service, raw TCP) rather than an Ingress. Not set up here.
 
 Start a session, send a prompt, then verify:
 
