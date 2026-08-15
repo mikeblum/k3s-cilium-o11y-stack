@@ -74,6 +74,14 @@ dashboardProviders:
 # download-dashboards init container. Top-level key must match a provider name
 # above; each entry becomes /var/lib/grafana/dashboards/<provider>/<key>.json.
 #
+# Renaming or removing a key leaves the old JSON behind — these land on the
+# PVC, and the init container only adds. Two files with one gnetId means one
+# duplicated dashboard UID, which makes Grafana revoke write permission for
+# the whole provider and quietly stop updating it. Delete the stale file:
+#
+#   kubectl exec -n o11y deploy/grafana -c grafana -- \
+#     rm /var/lib/grafana/dashboards/<provider>/<old-key>.json
+#
 # All of these are PromQL against the `prometheus` datasource. ClickHouse-backed
 # log/trace dashboards ship inside the plugin instead — import them via
 # Connections → Data Sources → ClickHouse → Dashboards.
@@ -114,10 +122,10 @@ dashboards:
           value: prometheus
 
   host:
-    # node-exporter, scraped by the collector from the o11y-host namespace.
+    # node-exporter, scraped by the collector from the host namespace.
     # Panels group by `instance`, which the scrape job relabels to the node
     # name — see values/otel-collector.yaml.
-    node-exporter-full:
+    node-exporter:
       gnetId: 1860          # Node Exporter Full
       revision: 41
       datasource:

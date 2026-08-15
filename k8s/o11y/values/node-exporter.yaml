@@ -1,7 +1,7 @@
 # node-exporter — metrics for the homelab host itself: CPU, load, memory, disk
 # I/O, filesystem usage, network, and uptime.
 #
-# Installed as its own release in the o11y-host namespace rather than as the
+# Installed as its own release in the host namespace rather than as the
 # Prometheus chart's bundled subchart. The subchart lands in o11y, whose
 # `enforce: baseline` PodSecurity label rejects every host access node-exporter
 # needs — the DaemonSet is admitted and then silently creates zero pods. See

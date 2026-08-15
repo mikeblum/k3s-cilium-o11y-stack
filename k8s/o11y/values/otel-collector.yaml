@@ -135,8 +135,8 @@ config:
                 action: keep
 
           # The homelab host itself — CPU, load, memory, disk, filesystem,
-          # network. node-exporter lives in o11y-host, not o11y: it needs host
-          # access that this namespace's `enforce: baseline` label forbids
+          # network. node-exporter lives in the `host` namespace, not o11y: it
+          # needs host access that o11y's `enforce: baseline` label forbids
           # (see namespace.yaml). Nothing else scrapes it.
           #
           # node-exporter runs hostNetwork, so its pod IP is the node IP and the
@@ -148,7 +148,7 @@ config:
             kubernetes_sd_configs:
               - role: pod
                 namespaces:
-                  names: [o11y-host]
+                  names: [host]
             relabel_configs:
               - source_labels:
                   - __meta_kubernetes_pod_label_app_kubernetes_io_name

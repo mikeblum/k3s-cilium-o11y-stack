@@ -6,7 +6,7 @@ HELM_REPOS := \
 
 NS         := o11y
 # node-exporter only — the one namespace allowed host access. See namespace.yaml.
-HOST_NS    := o11y-host
+HOST_NS    := host
 DOMAIN     ?= example.local
 
 .PHONY: repos install uninstall status routes secrets
