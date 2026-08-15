@@ -3,10 +3,9 @@
 # otelcol.o11y.svc.cluster.local:4317. See k8s/o11y/CLAUDE-CODE-TELEMETRY.md.
 #
 # Senders need OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf — an Ingress proxies
-# HTTP, so 4317 (gRPC) is not reachable through it. Exposing gRPC would mean a
-# second, Layer 3 proxy: a Service with loadBalancerClass: tailscale, which
-# DNATs raw TCP. Auth is tailnet membership, same as Grafana. First connection
-# takes 30-60s while Let's Encrypt issues the cert.
+# HTTP, so 4317 (gRPC) is not reachable through it. gRPC has its own Layer 3
+# proxy in service-otlp-grpc.yaml. Auth is tailnet membership, same as Grafana.
+# First connection takes 30-60s while Let's Encrypt issues the cert.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
