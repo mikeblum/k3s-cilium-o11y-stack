@@ -30,8 +30,12 @@ status:
 	kubectl get ingress -n o11y
 	kubectl get ingress -n kube-system
 	@echo ""
-	@echo "=== Tailscale proxy pods (one per Ingress) ==="
+	@echo "=== Exposed Services (Layer 3) ==="
+	kubectl get svc -n o11y -l '!tailscale.com/parent-resource' --field-selector spec.type=LoadBalancer
+	@echo ""
+	@echo "=== Tailscale proxy pods (one per Ingress and exposed Service) ==="
 	kubectl get pods -n $(NS) -l tailscale.com/parent-resource-type=ingress
+	kubectl get pods -n $(NS) -l tailscale.com/parent-resource-type=svc
 
 logs-grafana:
 	$(eval POD := $(shell kubectl get pod -n tailscale \

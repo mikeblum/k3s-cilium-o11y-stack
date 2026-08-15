@@ -241,7 +241,8 @@ cp values.secret.yaml.example values.secret.yaml
 make install
 ```
 
-**Success:** proxy pods appear in `make status` (one per Ingress — grafana, hubble).
+**Success:** proxy pods appear in `make status` — one per Ingress (grafana, hubble) plus one
+per exposed Service (otlp).
 May take 30–60 s on first run while Let's Encrypt certs are issued.
 
 ---
