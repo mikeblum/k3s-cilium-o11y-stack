@@ -94,9 +94,22 @@ config:
     # Ingest from outside the cluster — workstations, CI. Fronted by the
     # Tailscale ingress (k8s/tailscale/manifests/ingress-otlp.yaml).
     #
-    # Kept separate from the in-cluster `otlp` receiver so that (a) only this
-    # port is reachable from the tailnet, and (b) its pipelines can skip
-    # k8s_attributes — there is no pod behind a workstation to enrich from.
+    # Separate from the in-cluster `otlp` receiver because the receiver is the
+    # only pipeline selector: a processor cannot be skipped for part of one
+    # port's traffic, and two receivers cannot share a port.
+    #
+    # What has to be skipped is k8s_attributes — its pod_association ends in a
+    # `from: connection` fallback that resolves the source IP to a pod. External
+    # traffic arrives from the Tailscale proxy, so on a shared port every payload
+    # would be stamped k8s.namespace.name=tailscale, k8s.pod.name=ts-otlp-ts-*.
+    # internalTrafficPolicy: Local pins the connection to the collector on the
+    # proxy's own node, so that lookup always hits — deterministic, not a race.
+    #
+    # ServiceName is not at risk either way: k8s_attributes never overwrites an
+    # attribute the payload already carries, and senders set OTEL_SERVICE_NAME.
+    #
+    # Not a security boundary — what the tailnet can reach is set by the Ingress
+    # backend port (ingress-otlp.yaml), not by this listener existing.
     otlp/external:
       protocols:
         grpc:
@@ -226,7 +239,8 @@ config:
         processors: [memory_limiter, k8s_attributes, batch]
         exporters: [clickhouse]
 
-      # Same destination, minus k8s_attributes — no pod to enrich from.
+      # Same destination, minus k8s_attributes — it would attribute these to the
+      # Tailscale proxy pod. See the otlp/external receiver.
       traces/external:
         receivers: [otlp/external]
         processors: [memory_limiter, batch]
