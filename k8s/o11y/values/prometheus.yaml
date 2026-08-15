@@ -28,9 +28,9 @@ serviceMonitorSelector:
 alertmanager:
   enabled: false          # no alerting configured
 prometheus-node-exporter:
-  enabled: false          # not unused — own release in the `host` namespace.
-                          # As a subchart it lands in o11y, where `enforce:
-                          # baseline` makes it run zero pods, silently.
+  enabled: false          # not unused — own release in the `node-exporter`
+                          # namespace. As a subchart it lands in o11y, where
+                          # `enforce: baseline` makes it run zero pods, silently.
                           # See values/node-exporter.yaml.
 prometheus-pushgateway:
   enabled: false          # nothing pushes to it

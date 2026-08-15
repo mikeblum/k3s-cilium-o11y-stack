@@ -100,7 +100,7 @@ prometheus-server-xxxxx          2/2  Running   # + configmap-reload sidecar
 prometheus-kube-state-metrics-x  1/1  Running
 ```
 
-Plus one pod in the `host` namespace, which `make o11y-status` also prints:
+Plus one pod in the `node-exporter` namespace, which `make o11y-status` also prints:
 
 ```
 node-exporter-prometheus-node-exporter-xxxxx  1/1  Running   # DaemonSet

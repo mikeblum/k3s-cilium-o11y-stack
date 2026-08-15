@@ -123,7 +123,7 @@ config:
                 action: keep
 
           # The homelab host — CPU, load, memory, disk, filesystem, network.
-          # node-exporter lives in the `host` namespace because o11y's
+          # node-exporter lives in its own namespace because o11y's
           # `enforce: baseline` forbids the host access it needs (namespace.yaml).
           # It runs hostNetwork, so relabel `instance` off the node IP to the
           # node name: dashboards key on it, and it survives pod restarts.
@@ -132,7 +132,7 @@ config:
             kubernetes_sd_configs:
               - role: pod
                 namespaces:
-                  names: [host]
+                  names: [node-exporter]
             relabel_configs:
               - source_labels:
                   - __meta_kubernetes_pod_label_app_kubernetes_io_name

@@ -1,7 +1,7 @@
 # node-exporter — host metrics for the homelab box: CPU, load, memory, disk,
 # filesystem, network. Scraped by the collector, not Prometheus.
 #
-# Its own release in the `host` namespace, not the Prometheus chart's bundled
+# Its own release in the `node-exporter` namespace, not the chart's bundled
 # subchart: that lands in o11y, where `enforce: baseline` rejects the host
 # access it needs and the DaemonSet silently runs zero pods.
 #
