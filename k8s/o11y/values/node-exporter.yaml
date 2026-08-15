@@ -12,11 +12,10 @@ hostNetwork: true
 hostPID: true
 
 service:
-  # The collector discovers pods, not Services — this exists only to name the
-  # port `metrics`, which the scrape job matches on.
-  enabled: true
-  port: 9100
-  targetPort: 9100
+  # Nothing consumes it: the collector's scrape job discovers pods and matches
+  # the container port name, which the DaemonSet sets to `metrics` regardless.
+  # The pod is hostNetwork, so :9100 on the node works for a manual curl.
+  enabled: false
 
 resources:
   requests:
