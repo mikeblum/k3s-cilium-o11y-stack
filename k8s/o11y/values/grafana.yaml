@@ -125,9 +125,10 @@ dashboards:
     # node-exporter, scraped by the collector from the host namespace.
     # Panels group by `instance`, which the scrape job relabels to the node
     # name — see values/otel-collector.yaml.
+    # No `datasource:` block, unlike the entries above. Since revision 42 this
+    # dashboard has no ${DS_PROMETHEUS} input to substitute — it ships a
+    # datasource-type variable that lists prometheus datasources and picks one
+    # at load. A substitution here would match nothing.
     node-exporter:
       gnetId: 1860          # Node Exporter Full
-      revision: 41
-      datasource:
-        - name: DS_PROMETHEUS
-          value: prometheus
+      revision: 45
