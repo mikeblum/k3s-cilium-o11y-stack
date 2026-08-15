@@ -6,3 +6,9 @@ k8s/o11y/secrets.yaml
 
 # mkcert generated cert files — never commit private keys
 k8s/tls/certs/
+
+# cli/ build output and coverage profile
+# `go build ./...` names the binary after the directory, hence cli/cli
+cli/otel-clickhouse-stack
+cli/cli
+cli/coverage.out

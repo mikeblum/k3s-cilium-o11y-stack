@@ -61,6 +61,11 @@ routes:
 pf-clickhouse:
 	kubectl port-forward -n $(NS) svc/clickhouse 8123:8123
 
+# Native TCP (9000). ClickHouse has no route through the Gateway, so the cli/
+# report tool reaches it through this forward — see cli/README.md.
+pf-clickhouse-native:
+	kubectl port-forward -n $(NS) svc/clickhouse 9000:9000
+
 pf-grafana:
 	kubectl port-forward -n $(NS) svc/grafana 3000:3000
 

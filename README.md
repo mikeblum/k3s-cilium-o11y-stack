@@ -114,6 +114,22 @@ make -C k8s/o11y install
 
 **3.** Add an HTTPRoute (LAN) and Tailscale Ingress — see `k8s/tailscale/manifests/ingress-grafana.yaml` and `k8s/o11y/manifests/gateway-routes.yaml` for examples.
 
+## Reporting Claude Code spend
+
+[`cli/`](cli/README.md) is a Go CLI that reads the `claude_code.*` metrics out of
+ClickHouse and prints token and cost summaries — the everyday question the stack
+answers, without opening Grafana. ClickHouse has no Gateway route, so it goes
+over a port-forward and pulls its password from the `clickhouse-auth` Secret:
+
+```bash
+make cli-port-forward        # leave running in another shell
+make spend                   # last 7 days of tokens + cost
+make cli-install             # then: otel-clickhouse-stack --daily --by model
+```
+
+Point Claude Code at the collector first — see
+[`k8s/o11y/CLAUDE-CODE-TELEMETRY.md`](k8s/o11y/CLAUDE-CODE-TELEMETRY.md).
+
 ---
 
 ## Troubleshooting
