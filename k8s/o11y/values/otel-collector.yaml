@@ -123,15 +123,11 @@ config:
                 regex: operator;prometheus
                 action: keep
 
-          # The homelab host itself — CPU, load, memory, disk, filesystem,
-          # network. node-exporter lives in the `host` namespace, not o11y: it
-          # needs host access that o11y's `enforce: baseline` label forbids
-          # (see namespace.yaml). Nothing else scrapes it.
-          #
-          # node-exporter runs hostNetwork, so its pod IP is the node IP and the
-          # default `instance` label would be a bare address. Relabel it to the
-          # node name — dashboards key off `instance`, and this keeps the series
-          # stable across restarts and readable as a hostname.
+          # The homelab host — CPU, load, memory, disk, filesystem, network.
+          # node-exporter lives in the `host` namespace because o11y's
+          # `enforce: baseline` forbids the host access it needs (namespace.yaml).
+          # It runs hostNetwork, so relabel `instance` off the node IP to the
+          # node name: dashboards key on it, and it survives pod restarts.
           - job_name: node-exporter
             scrape_interval: 15s
             kubernetes_sd_configs:

@@ -5,13 +5,9 @@ metadata:
   labels:
     pod-security.kubernetes.io/enforce: baseline
 ---
-# node-exporter reads the host it runs on, so it needs hostNetwork, hostPID,
-# hostPath mounts of /proc, /sys and /, and hostPort 9100 — every one of which
-# `baseline` rejects. Rather than relax o11y for one workload, it gets its own
-# namespace, and this is the only namespace in the stack allowed host access.
-#
-# Nothing else belongs here. Anything that does not need to read the host
-# belongs in o11y under baseline.
+# node-exporter reads the host, so it needs hostNetwork, hostPID, hostPath
+# (/proc, /sys, /) and hostPort — all rejected by `baseline`. It gets its own
+# namespace rather than relaxing o11y. Nothing else belongs here.
 apiVersion: v1
 kind: Namespace
 metadata:
