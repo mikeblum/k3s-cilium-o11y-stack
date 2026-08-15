@@ -41,7 +41,9 @@ This observability stack is opinionated in that eBPF is The Way ™️ for obser
 | [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse | `grafana.<domain>` |
 | [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS | — |
 
-_Exposed services use host-based routing. TLS is an mkcert wildcard on the LAN and auto-provisioned Let's Encrypt over Tailscale, where each also resolves at `<service>.<tailnet>.ts.net`. `<domain>` defaults to `example.local`. Apps send OTLP to `otelcol.o11y.svc.cluster.local:4317`._
+_Exposed services use host-based routing. TLS is an mkcert wildcard on the LAN and auto-provisioned Let's Encrypt over Tailscale, where each also resolves at `<service>.<tailnet>.ts.net`. `<domain>` defaults to `example.local`._
+
+_In-cluster apps send OTLP to `otelcol.o11y.svc.cluster.local:4317`. Producers outside the cluster use `https://otlp.<tailnet>.ts.net` — see [`k8s/o11y/CLAUDE-CODE-TELEMETRY.md`](k8s/o11y/CLAUDE-CODE-TELEMETRY.md)._
 
 ## Architecture
 
@@ -129,6 +131,15 @@ kubectl get secret example-local-tls -n envoy-gateway-system   # dots-to-dashes 
 kubectl logs -n o11y ds/otelcol-agent --tail=30
 kubectl exec -n o11y clickhouse-0 -- clickhouse-client \
   --query "SELECT ServiceName, count() FROM otel.otel_logs GROUP BY ServiceName"
+```
+
+**Telemetry from outside the cluster not arriving** — test the path before
+debugging client config. A `200` with `{"partialSuccess":{}}` means the endpoint
+is fine:
+```bash
+curl -sv https://otlp.<tailnet>.ts.net/v1/traces \
+  -X POST -H 'Content-Type: application/json' -d '{}'
+kubectl logs -n tailscale -l tailscale.com/parent-resource=otlp-ts --tail=30
 ```
 
 **A metric appears twice under different `job` labels** — two things are
