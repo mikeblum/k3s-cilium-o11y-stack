@@ -16,6 +16,12 @@
 # BOTH. Regenerate a hash with:
 #
 #   printf '%s' 'your-password' | sha256sum
+#
+# The chart mounts this ConfigMap with subPath, which kubelet never refreshes.
+# ClickHouse hot-reloads users.d, but it will never see an edit here until the
+# pod is replaced — `kubectl apply` alone is a no-op:
+#
+#   kubectl rollout restart statefulset/clickhouse -n o11y
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -24,6 +30,19 @@ metadata:
 data:
   00-network-override.xml: |
     <clickhouse>
+      <profiles>
+        <!-- Read-only for a BI client, not ClickHouse's built-in `readonly`
+             profile. That one is readonly=1, which also forbids changing any
+             setting — and the Grafana ClickHouse plugin sends max_execution_time
+             with every query, so each panel fails with:
+               Code: 164 ... Cannot modify 'max_execution_time' in readonly mode
+             readonly=2 permits setting changes while still rejecting INSERT and
+             DDL. -->
+        <readonly_grafana>
+          <readonly>2</readonly>
+        </readonly_grafana>
+      </profiles>
+
       <users>
         <!-- Lock default user back to localhost — dedicated users handle all app access -->
         <default>
@@ -37,7 +56,7 @@ data:
         <grafana>
           <password_sha256_hex>3e1a5813cc0d6ca949f29a020315cfc6da9aef1597247a867f27270a203a23ff</password_sha256_hex>
           <networks><ip>::/0</ip></networks>
-          <profile>readonly</profile>
+          <profile>readonly_grafana</profile>
           <quota>default</quota>
         </grafana>
 
