@@ -43,7 +43,7 @@ This observability stack is opinionated in that eBPF is The Way ™️ for obser
 
 _Exposed services use host-based routing. TLS is an mkcert wildcard on the LAN and auto-provisioned Let's Encrypt over Tailscale, where each also resolves at `<service>.<tailnet>.ts.net`. `<domain>` defaults to `example.local`._
 
-_In-cluster apps send OTLP to `otelcol.o11y.svc.cluster.local:4317`. Producers outside the cluster use `https://otlp.<tailnet>.ts.net` — see [`k8s/o11y/CLAUDE-CODE-TELEMETRY.md`](k8s/o11y/CLAUDE-CODE-TELEMETRY.md)._
+_In-cluster apps send OTLP to `otelcol.o11y.svc.cluster.local:4317`. Producers outside the cluster use `https://otlp.<tailnet>.ts.net` for HTTP or `otlp-grpc.<tailnet>.ts.net:4317` for gRPC — see [`k8s/o11y/CLAUDE-CODE-TELEMETRY.md`](k8s/o11y/CLAUDE-CODE-TELEMETRY.md)._
 
 ## Architecture
 

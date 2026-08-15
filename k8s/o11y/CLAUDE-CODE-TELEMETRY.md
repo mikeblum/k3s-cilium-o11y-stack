@@ -17,10 +17,9 @@ export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
 ```
 
-`http/protobuf` above is not a preference — this endpoint is a Tailscale Ingress,
-which proxies HTTP. The collector does listen on 4317, but reaching gRPC over the
-tailnet needs the operator's Layer 3 mode (a `loadBalancerClass: tailscale`
-Service, raw TCP) rather than an Ingress. Not set up here.
+`http/protobuf` matches the endpoint: `otlp.<tailnet>.ts.net` is a Tailscale
+Ingress, which proxies HTTP and so cannot carry gRPC. There is a gRPC endpoint
+too — see [Other OTLP producers](#other-otlp-producers).
 
 Start a session, send a prompt, then verify:
 
@@ -94,6 +93,21 @@ export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
 export OTEL_SERVICE_NAME=my-app
 ```
+
+Or gRPC, on a second tailnet name:
+
+```bash
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp-grpc.<tailnet>.ts.net:4317
+export OTEL_SERVICE_NAME=my-app
+```
+
+Two endpoints because the Tailscale operator exposes them differently. The HTTPS
+one is an Ingress: Layer 7, `tailscale serve`, HTTPS with a Let's Encrypt cert,
+HTTP only. The gRPC one is a `loadBalancerClass: tailscale` Service: Layer 3,
+raw TCP, so it carries HTTP/2 end to end — but has no certificate, hence the
+`http://` scheme. WireGuard encrypts it either way and tailnet membership is
+the auth boundary for both. See `k8s/tailscale/manifests/`.
 
 `OTEL_SERVICE_NAME` becomes the `ServiceName` column — set it per producer.
 
