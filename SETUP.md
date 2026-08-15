@@ -40,8 +40,12 @@ make cilium-lb NODE_CIDR=192.168.1.192/26   # a free /26 range on your LAN
 Verify Cilium is up before continuing:
 
 ```bash
-kubectl exec -n kube-system ds/cilium -- curl -s http://localhost:9962/metrics | head -5
+kubectl -n kube-system rollout status ds/cilium --timeout=180s
+curl -s http://localhost:9962/metrics | head -5   # agent runs hostNetwork, so :9962 is on the node
 ```
+
+> `kubectl exec ... -- curl` will not work: neither `cilium-agent` nor
+> `prometheus-server` ships curl.
 
 ### 2. Envoy Gateway
 
@@ -89,11 +93,11 @@ make o11y-status
 Expected steady state:
 
 ```
-alloy-xxxxx          1/1  Running   # DaemonSet — one per node
-ch-writer-xxxxx      1/1  Running
-clickhouse-0         1/1  Running
-grafana-xxxxx        1/1  Running
-prometheus-server    1/1  Running
+otelcol-agent-xxxxx              1/1  Running   # DaemonSet — one per node
+clickhouse-0                     1/1  Running
+grafana-xxxxx                    2/2  Running   # + datasource sidecar
+prometheus-server-xxxxx          2/2  Running   # + configmap-reload sidecar
+prometheus-kube-state-metrics-x  1/1  Running
 ```
 
 ### 6. Tailscale
@@ -155,7 +159,12 @@ cd k8s/tailscale && make status
 ```bash
 curl -I https://grafana.example.local
 
-kubectl exec -n o11y deploy/ch-writer -- \
-  curl -s "http://clickhouse.o11y.svc.cluster.local:8123/?query=SELECT+count()+FROM+otel.otel_logs"
+kubectl exec -n o11y clickhouse-0 -- \
+  clickhouse-client --query "SELECT count() FROM otel.otel_logs"
 ```
-> **Note:** `ch-writer` is a temporary otelcol-contrib sidecar that handles the ClickHouse write path until `otelcol.exporter.clickhouse` lands natively in Alloy ([grafana/alloy#3492](https://github.com/grafana/alloy/issues/3492)). When it does: delete `ch-writer-deployment.yaml` and move the exporter block into `alloy-configmap.yaml`.
+
+> A count of `0` with a healthy collector just means nothing has sent OTLP yet.
+>
+> The collector authenticates to ClickHouse as `otel_writer`. Its password lives
+> in the gitignored `k8s/o11y/secrets.yaml`; the SHA-256 of the same password is
+> in `manifests/clickhouse-users-override.yaml`. Rotating means updating both.

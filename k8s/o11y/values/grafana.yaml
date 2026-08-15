@@ -1,9 +1,10 @@
 # Grafana 13.0.1 — Grafana 13 stable (security-patched)
 #
-# Auth: login form disabled; anonymous access granted as Admin.
-# Tailscale membership is the auth boundary — only tailnet members can
-# reach this instance, so a second login prompt adds friction with no
-# security benefit.
+# Auth: Tailscale membership is the auth boundary — only tailnet members can
+# reach this instance — so anonymous access is enabled and the login form is
+# hidden. Anonymous users land in the Viewer role; anyone who does sign in
+# (admin credentials still work via the API / a direct /login URL) is
+# auto-assigned Admin.
 
 image:
   tag: "13.0.1"
@@ -13,13 +14,13 @@ grafana.ini:
     check_for_updates: false      # avoid outbound call on every load; this is an air-gapped homelab
     check_for_plugin_updates: false
     reporting_enabled: false
+  auth:
+    disable_login_form: true      # nothing to log into — the tailnet is the boundary
   auth.anonymous:
     enabled: true
-    org_role: Viewer              # Grafana 13: Admin is no longer supported for anonymous; use auto_assign_org_role below
+    org_role: Viewer
   users:
-    auto_assign_org_role: Admin   # all users (including anonymous) get Admin role in the default org
-  auth:
-    disable_login_form: true      # Tailscale is the auth boundary; no second login needed
+    auto_assign_org_role: Admin   # applies to real logins only, NOT anonymous users
 
 plugins:
   - grafana-clickhouse-datasource
@@ -27,6 +28,14 @@ plugins:
 sidecar:
   datasources:
     enabled: true   # auto-loads datasources from ConfigMaps with grafana_datasource=1 label
+
+# Supplies $__env{CLICKHOUSE_GRAFANA_PASSWORD} to the provisioned ClickHouse
+# datasource in manifests/grafana-datasources-configmap.yaml.
+envValueFrom:
+  CLICKHOUSE_GRAFANA_PASSWORD:
+    secretKeyRef:
+      name: clickhouse-auth
+      key: GRAFANA_PASSWORD
 
 persistence:
   enabled: true
@@ -54,13 +63,13 @@ dashboardProviders:
         options:
           path: /var/lib/grafana/dashboards/otel
 
-# Dashboards downloaded at pod startup by the download-dashboards init container.
-# Top-level key must match a provider name above; each entry maps to one JSON file
-# at /var/lib/grafana/dashboards/<provider>/<key>.json.
+# Dashboards downloaded from grafana.com at pod startup by the
+# download-dashboards init container. Top-level key must match a provider name
+# above; each entry becomes /var/lib/grafana/dashboards/<provider>/<key>.json.
 #
-# OTel dashboards come from dashboardsConfigMaps below (official Alloy mixin JSON,
-# no grafana.com gnetId).  ClickHouse-backed trace/log dashboards are bundled in
-# the plugin — import via: Connections → Data Sources → ClickHouse → Dashboards tab
+# All of these are PromQL against the `prometheus` datasource. ClickHouse-backed
+# log/trace dashboards ship inside the plugin instead — import them via
+# Connections → Data Sources → ClickHouse → Dashboards.
 dashboards:
   cilium:
     # Cilium 1.12 dashboards — metric names are stable through 1.17.
@@ -86,12 +95,13 @@ dashboards:
         - name: DS_PROMETHEUS
           value: prometheus
 
-  # otel provider dashboards come from the alloy-dashboards ConfigMap below —
-  # no gnetId entries here.
-
-# ConfigMap-backed dashboards (no grafana.com gnetId).
-# Key = provider name; value = ConfigMap name in the same namespace.
-# The helm chart mounts the ConfigMap at /var/lib/grafana/dashboards/<provider>/.
-# Source: https://github.com/grafana/alloy/tree/main/operations/alloy-mixin/rendered/dashboards
-dashboardsConfigMaps:
-  otel: alloy-dashboards
+  otel:
+    # Backed by the collector's own :8888 self-metrics, which the `prometheus`
+    # receiver scrapes and remote-writes to Prometheus (see
+    # values/otel-collector.yaml).
+    otel-collector:
+      gnetId: 15983         # OpenTelemetry Collector
+      revision: 30
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus

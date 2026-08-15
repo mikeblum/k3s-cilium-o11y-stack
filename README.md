@@ -28,56 +28,56 @@ This observability stack is opinionated in that eBPF is The Way ™️ for obser
 
 ## Components
 
-| Component | Layer | Role |
-|-----------|-------|------|
-| [k3s](https://k3s.io) | Cluster | Lightweight Kubernetes; runs with flannel, kube-proxy, and Traefik disabled to make room for Cilium + Envoy Gateway |
-| [Cilium](https://cilium.io) | Networking | eBPF CNI — pod networking, kube-proxy replacement, and L2 LoadBalancer IP pool |
-| [Hubble UI](https://docs.cilium.io/en/stable/gettingstarted/hubble/) | Networking | Real-time network flow visualization built into Cilium |
-| [Envoy Gateway](https://gateway.envoyproxy.io) | Ingress | Kubernetes Gateway API controller; routes HTTPS subdomains to in-cluster services |
-| [mkcert](https://github.com/FiloSottile/mkcert) | TLS | [@FiloSottile](https://github.com/FiloSottile)'s excellent tool for bringing https to `localhost` |
-| [Prometheus](https://prometheus.io) | Observability | Metrics scraping and time-series storage |
-| [Grafana Alloy](https://grafana.com/oss/alloy-opentelemetry-collector/) | Observability | DaemonSet telemetry collector; receives OTLP from apps, scrapes Cilium + Prometheus targets |
-| [ClickHouse](https://clickhouse.com) | Observability | OLAP database; backend store for logs, traces, and metrics |
-| ch-writer | Observability | Temporary OTLP → ClickHouse bridge (removed once Alloy ships a native ClickHouse exporter — [grafana/alloy#3492](https://github.com/grafana/alloy/issues/3492)) |
-| [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse |
-| [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS |
+| Component | Layer | Role | Access |
+|-----------|-------|------|--------|
+| [k3s](https://k3s.io) | Cluster | Lightweight Kubernetes; runs with flannel, kube-proxy, and Traefik disabled to make room for Cilium + Envoy Gateway | internal |
+| [Cilium](https://cilium.io) | Networking | eBPF CNI — pod networking, kube-proxy replacement, and L2 LoadBalancer IP pool | internal |
+| [Hubble UI](https://docs.cilium.io/en/stable/gettingstarted/hubble/) | Networking | Real-time network flow visualization built into Cilium | `hubble.<domain>` |
+| [Envoy Gateway](https://gateway.envoyproxy.io) | Ingress | Kubernetes Gateway API controller; routes HTTPS subdomains to in-cluster services | internal |
+| [mkcert](https://github.com/FiloSottile/mkcert) | TLS | [@FiloSottile](https://github.com/FiloSottile)'s excellent tool for bringing https to `localhost` | setup CLI |
+| [Prometheus](https://prometheus.io) | Observability | Time-series store for infra metrics; backs the Cilium dashboards | internal |
+| [OTel Collector](https://opentelemetry.io/docs/collector/) | Observability | Receives OTLP → ClickHouse; scrapes Cilium/Hubble → Prometheus | `:4317/:4318` |
+| [ClickHouse](https://clickhouse.com) | Observability | OLAP database; backend store for logs, traces, and metrics | internal |
+| [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse | `grafana.<domain>` |
+| [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS | — |
+
+_Exposed services use host-based routing. TLS is an mkcert wildcard on the LAN and auto-provisioned Let's Encrypt over Tailscale, where each also resolves at `<service>.<tailnet>.ts.net`. `<domain>` defaults to `example.local`. Apps send OTLP to `otelcol.o11y.svc.cluster.local:4317`._
 
 ## Architecture
 
 ```
-                    ┌─────────────────────────── k3s cluster ─────────────────────────────────────┐
-                    │ ┌── kube-system ──────────────┐  ┌── o11y ──────────────────────────────┐   │
- ┌──────────────┐   │ │                             │  │                                      │   │
- │ LAN          │───┼─┼─▶ Envoy Gateway        ─────┼──┼──────────────────────▶ Grafana       │   │
- │ HTTPS/mkcert │   │ │   → Grafana · Hubble UI     │  │                       ▲    ▲         │   │
- └──────────────┘   │ │            │                │  │                       │    │         │   │
-                    │ │            ▼                │  │  ClickHouse ──────────┘    │         │   │
- ┌──────────────┐   │ │        Hubble UI            │  │      ▲                     │         │   │
- │ Tailscale    │───┼─┼─▶ Tailscale Operator   ─────┼──┼──────┼─────────── Prometheus         │   │
- │ HTTPS/LE     │   │ │   → Grafana · Hubble UI     │  │      │                    ▲          │   │
- └──────────────┘   │ │                             │  │  ch-writer          remote_write     │   │
-                    │ │  Cilium + Hubble ────scrape──┼──┼──▶ Alloy (DaemonSet)               │   │
-                    │ │  :9962 · :9965              │  │       :4317/:4318 ◀── apps (OTLP)   │   │
-                    │ └─────────────────────────────┘  └──────────────────────────────────────┘   │
-                    └─────────────────────────────────────────────────────────────────────────────┘
+Ingress ─ reaching the UIs
+  ┌───────────┐  mkcert TLS (LAN)
+  │ LAN       │────────────────────▶ Envoy Gateway ──────┐
+  └───────────┘                                          ├──▶ Grafana · Hubble UI
+  ┌───────────┐  Let's Encrypt (Tailscale)               │
+  │ Tailscale │────────────────────▶ Tailscale Operator ─┘
+  └───────────┘
+
+Data plane ─ how telemetry flows
+                       ┌────────────────┐
+  apps ──── OTLP ─────▶│ OTel Collector │──▶ ClickHouse ──┐
+                       └────────────────┘                 ├──▶ Grafana
+   Cilium · Hubble ◀──── scrape ──┤                       │
+                                  └──remote_write──▶ Prometheus
+                                                          ▲
+                              apiserver · nodes · cadvisor ┘
+                              kube-state-metrics
 ```
 
-## Services & Routes
+**Metrics live in two stores.** Panels return empty rather than erroring when
+you query the wrong one:
 
-Every service gets its own subdomain via Envoy Gateway (LAN) or the Tailscale operator (remote). Below are the services powering the observability stack:
+- **Prometheus** (`prometheus` datasource, PromQL) — Cilium, Hubble,
+  cilium-operator, collector self-metrics, apiserver, nodes, cadvisor,
+  kube-state-metrics.
+- **ClickHouse** (`clickhouse` datasource, SQL) — everything arriving over OTLP:
+  app logs, traces, and metrics.
 
-| Service | LAN URL | Tailscale URL | Routing | TLS |
-|---------|---------|---------------|---------|-----|
-| **Grafana** | `https://grafana.example.local` | `https://grafana.<tailnet>.ts.net` | host-based | mkcert wildcard / Let's Encrypt |
-| **Hubble UI** | `https://hubble.example.local` | `https://hubble.<tailnet>.ts.net` | host-based | mkcert wildcard / Let's Encrypt |
-| **Alloy** | `https://example.local/alloy` | — LAN only | path-based | mkcert wildcard |
-
-**Tailscale** — the Tailscale operator exposes your k8s service to anywhere on your tailnet.
-**Alloy** - debug telemetry pipelines
-
-> **Adding a service** — see [Adding a service](#adding-a-service)
->  - HTTPRoute
->  - optional Tailscale Ingress pattern
+**Scraping lives in the collector, not Prometheus.** Prometheus's
+annotation-driven discovery is off, so `prometheus.io/scrape` on a pod does
+nothing. Add scrape targets under `prometheus/scrape` in
+`k8s/o11y/values/otel-collector.yaml`.
 
 ## Adding a service
 
@@ -88,23 +88,26 @@ Exposing a custom service in your cluster is a simple process:
 ```yaml
 env:
   - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: "http://alloy.o11y.svc.cluster.local:4317"
+    value: "http://otelcol.o11y.svc.cluster.local:4317"
   - name: OTEL_SERVICE_NAME
     value: "myapp"
 ```
 
-**2.** Add a scrape target to `k8s/o11y/manifests/alloy-configmap.yaml`:
+Step 1 covers metrics too — OTLP metrics land in ClickHouse. Only continue if
+your app exposes a Prometheus-style `/metrics` endpoint instead.
 
-```hcl
-prometheus.scrape "go_services" {
-  targets         = [{ __address__ = "myapp.myapp.svc.cluster.local:2112" }]
-  scrape_interval = "15s"
-  forward_to      = [prometheus.remote_write.local.receiver]
-}
+**2.** Add a scrape job under `config.receivers.prometheus/scrape` in
+`k8s/o11y/values/otel-collector.yaml` (extend the `go-services` placeholder):
+
+```yaml
+- job_name: myapp
+  scrape_interval: 15s
+  static_configs:
+    - targets: ["myapp.myapp.svc.cluster.local:2112"]
 ```
 
 ```bash
-kubectl apply -f k8s/o11y/manifests/alloy-configmap.yaml  # hot-reloads, no restart
+make -C k8s/o11y install
 ```
 
 **3.** Add an HTTPRoute (LAN) and Tailscale Ingress — see `k8s/tailscale/manifests/ingress-grafana.yaml` and `k8s/o11y/manifests/gateway-routes.yaml` for examples.
@@ -123,8 +126,24 @@ kubectl get secret example-local-tls -n envoy-gateway-system   # dots-to-dashes 
 
 **ClickHouse not receiving data:**
 ```bash
-kubectl logs -n o11y deploy/ch-writer --tail=30
+kubectl logs -n o11y ds/otelcol-agent --tail=30
+kubectl exec -n o11y clickhouse-0 -- clickhouse-client \
+  --query "SELECT ServiceName, count() FROM otel.otel_logs GROUP BY ServiceName"
 ```
+
+**A metric appears twice under different `job` labels** — two things are
+scraping the same endpoint. More than one row back means it's collected twice;
+remove the overlapping job from `values/prometheus.yaml` or the collector's
+`prometheus/scrape`:
+```bash
+kubectl port-forward -n o11y svc/prometheus-server 9090:80 &
+curl -sG http://localhost:9090/api/v1/query \
+  --data-urlencode 'query=count by (job) (cilium_agent_bootstrap_seconds_count)'
+```
+
+> Always pass PromQL with `-G --data-urlencode`. In a bare URL an unencoded `+`
+> arrives as a space, so `.+` becomes `. ` and the query returns empty instead
+> of erroring.
 
 **Tailscale proxy missing from Machines:**
 ```bash

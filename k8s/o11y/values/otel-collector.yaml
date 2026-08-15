@@ -1,0 +1,211 @@
+# OpenTelemetry Collector — the single telemetry pipeline for the cluster.
+#
+# Two independent flows in one process:
+#
+#   apps   --OTLP-->    otlp receiver       --> clickhouse exporter        (logs/traces/metrics)
+#   cilium --scrape-->  prometheus/scrape   --> prometheus_remote_write    (infra metrics)
+#
+# Cilium/Hubble dashboards are PromQL, so those metrics must reach Prometheus;
+# everything OTLP goes to ClickHouse. See README "Metrics live in two stores".
+#
+# This is the ONLY place scrape targets belong — Prometheus's own discovery is
+# disabled (values/prometheus.yaml).
+#
+# Chart version is pinned in the Makefile. Requires secrets.yaml for the
+# ClickHouse password (copy from secrets.example.yaml).
+
+mode: daemonset          # node-local: k8s_attributes filters pods by spec.nodeName
+fullnameOverride: otelcol
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.157.0"         # contrib — the clickhouse exporter is not in the core image
+
+resources:
+  requests:
+    cpu: 150m
+    memory: 192Mi
+  limits:
+    cpu: 750m
+    memory: 768Mi         # memory_limiter below is a percentage of this
+
+# Grants the ServiceAccount get/list/watch on pods/namespaces/nodes and wires
+# the k8s_attributes processor's filter + pod_association blocks.
+presets:
+  kubernetesAttributes:
+    enabled: true
+
+service:
+  enabled: true           # ClusterIP `otelcol` — the OTLP endpoint apps target
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+    hostPort: null        # daemonset defaults to a hostPort; ClusterIP is enough
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+    hostPort: null
+
+  # Legacy wire formats we do not speak — off to avoid open ports.
+  jaeger-compact:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  zipkin:
+    enabled: false
+
+extraEnvs:
+  - name: CLICKHOUSE_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: clickhouse-auth        # see k8s/o11y/secrets.example.yaml
+        key: OTEL_WRITER_PASSWORD
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+    # Cilium/Hubble/operator scraping. Kubernetes SD (pod role) rather than
+    # localhost — the DaemonSet happens to be node-local today, but SD keeps
+    # this correct if the collector ever moves to a Deployment.
+    prometheus/scrape:
+      config:
+        scrape_configs:
+          - job_name: cilium-agent
+            scrape_interval: 15s
+            kubernetes_sd_configs:
+              - role: pod
+                namespaces:
+                  names: [kube-system]
+            relabel_configs:
+              - source_labels:
+                  - __meta_kubernetes_pod_label_k8s_app
+                  - __meta_kubernetes_pod_container_port_name
+                regex: cilium;prometheus
+                action: keep
+
+          - job_name: hubble
+            scrape_interval: 15s
+            kubernetes_sd_configs:
+              - role: pod
+                namespaces:
+                  names: [kube-system]
+            relabel_configs:
+              - source_labels:
+                  - __meta_kubernetes_pod_label_k8s_app
+                  - __meta_kubernetes_pod_container_port_name
+                regex: cilium;hubble-metrics
+                action: keep
+
+          - job_name: cilium-operator
+            scrape_interval: 30s
+            kubernetes_sd_configs:
+              - role: pod
+                namespaces:
+                  names: [kube-system]
+            relabel_configs:
+              - source_labels:
+                  - __meta_kubernetes_pod_label_io_cilium_app
+                  - __meta_kubernetes_pod_container_port_name
+                regex: operator;prometheus
+                action: keep
+
+          # Placeholder for app metrics scraped over plain Prometheus.
+          # Apps that speak OTLP should push to this collector instead — see
+          # README "Adding a service".
+          - job_name: go-services
+            scrape_interval: 15s
+            static_configs:
+              - targets: []
+
+    # Wire formats we do not accept — null removes the chart's defaults.
+    jaeger: null
+    zipkin: null
+
+  processors:
+    batch:
+      timeout: 5s
+    k8s_attributes:
+      extract:
+        metadata:
+          - k8s.pod.name
+          - k8s.namespace.name
+          - k8s.node.name
+          - k8s.deployment.name
+        labels:
+          # Pods labelled `app: foo` surface in ClickHouse as service.name=foo.
+          - tag_name: service.name
+            key: app
+            from: pod
+
+  exporters:
+    clickhouse:
+      endpoint: tcp://clickhouse.o11y.svc.cluster.local:9000?dial_timeout=10s
+      database: otel
+      username: otel_writer          # manifests/clickhouse-users-override.yaml
+      password: ${env:CLICKHOUSE_PASSWORD}
+      logs_table_name: otel_logs
+      traces_table_name: otel_traces
+      metrics_table_name: otel_metrics
+      create_schema: true            # collector owns the DDL; tables made on first write
+      ttl: 720h                      # 30d.
+                                     # Applies ONLY to tables the exporter creates. To change
+                                     # retention on existing tables you must also run:
+                                     #   ALTER TABLE otel.<table> MODIFY TTL <expr>
+      compress: lz4
+      async_insert: true
+      timeout: 5s
+      retry_on_failure:
+        enabled: true
+        initial_interval: 5s
+        max_interval: 30s
+        max_elapsed_time: 300s
+
+    prometheus_remote_write:
+      endpoint: http://prometheus-server.o11y.svc.cluster.local/api/v1/write
+      timeout: 30s
+      retry_on_failure:
+        enabled: true
+        initial_interval: 5s
+        max_interval: 30s
+        max_elapsed_time: 300s
+
+    debug: null                      # drop the chart's default stdout exporter
+
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [clickhouse]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [clickhouse]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [clickhouse]
+
+      # Infra metrics -> Prometheus. No k8s_attributes: these carry Prometheus
+      # target labels already, and the processor would only add OTel resource
+      # attributes the Cilium dashboards do not query.
+      # `prometheus` is the chart's own self-metrics receiver (:8888), which
+      # backs the OTel Collector dashboard (gnetId 15983) in Grafana.
+      metrics/prometheus:
+        receivers: [prometheus, prometheus/scrape]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus_remote_write]
