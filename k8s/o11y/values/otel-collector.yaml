@@ -52,6 +52,19 @@ ports:
     protocol: TCP
     hostPort: null
 
+  # External OTLP ingest. otlp-ext-http (4320) is what the Tailscale ingress fronts.
+  # Omit hostPort — the chart's schema rejects null on custom port entries.
+  otlp-ext:
+    enabled: true
+    containerPort: 4319
+    servicePort: 4319
+    protocol: TCP
+  otlp-ext-http:
+    enabled: true
+    containerPort: 4320
+    servicePort: 4320
+    protocol: TCP
+
   # Legacy wire formats we do not speak — off to avoid open ports.
   jaeger-compact:
     enabled: false
@@ -77,6 +90,19 @@ config:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
+
+    # Ingest from outside the cluster — workstations, CI. Fronted by the
+    # Tailscale ingress (k8s/tailscale/manifests/ingress-otlp.yaml).
+    #
+    # Kept separate from the in-cluster `otlp` receiver so that (a) only this
+    # port is reachable from the tailnet, and (b) its pipelines can skip
+    # k8s_attributes — there is no pod behind a workstation to enrich from.
+    otlp/external:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4319
+        http:
+          endpoint: 0.0.0.0:4320
 
     # Cilium/Hubble/operator scraping. Kubernetes SD (pod role) rather than
     # localhost — the DaemonSet happens to be node-local today, but SD keeps
@@ -161,7 +187,7 @@ config:
       traces_table_name: otel_traces
       metrics_table_name: otel_metrics
       create_schema: true            # collector owns the DDL; tables made on first write
-      ttl: 720h                      # 30d.
+      ttl: 0                         # keep forever.
                                      # Applies ONLY to tables the exporter creates. To change
                                      # retention on existing tables you must also run:
                                      #   ALTER TABLE otel.<table> MODIFY TTL <expr>
@@ -198,6 +224,20 @@ config:
       metrics:
         receivers: [otlp]
         processors: [memory_limiter, k8s_attributes, batch]
+        exporters: [clickhouse]
+
+      # Same destination, minus k8s_attributes — no pod to enrich from.
+      traces/external:
+        receivers: [otlp/external]
+        processors: [memory_limiter, batch]
+        exporters: [clickhouse]
+      logs/external:
+        receivers: [otlp/external]
+        processors: [memory_limiter, batch]
+        exporters: [clickhouse]
+      metrics/external:
+        receivers: [otlp/external]
+        processors: [memory_limiter, batch]
         exporters: [clickhouse]
 
       # Infra metrics -> Prometheus. No k8s_attributes: these carry Prometheus
