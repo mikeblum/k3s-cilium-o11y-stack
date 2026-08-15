@@ -7,10 +7,8 @@
 #   otel_writer  — the collector's clickhouse exporter (INSERT + DDL on otel.*)
 #   grafana      — the Grafana ClickHouse datasource (read-only)
 #
-# `default` stays locked to localhost. It was previously opened to ::/0 so
-# ch-writer and Grafana could reach it; nothing needs that now, and an
-# unauthenticated superuser reachable from any pod is not worth keeping for
-# the convenience.
+# `default` stays locked to localhost. Keep it that way — an unauthenticated
+# superuser reachable from any pod is not worth the convenience.
 #
 # Passwords are SHA-256 hashes here and plaintext in the clickhouse-auth
 # Secret (see secrets.example.yaml) — ClickHouse reads this file, the

@@ -65,6 +65,6 @@ pf-grafana:
 	kubectl port-forward -n $(NS) svc/grafana 3000:3000
 
 # Collector health endpoint (:13133) and self-metrics (:8888).
-# The collector has no debug UI — Alloy's :12345 has no equivalent.
+# There is no debug UI — inspect the collector through these two ports.
 pf-otel:
 	kubectl port-forward -n $(NS) ds/otelcol-agent 13133:13133 8888:8888

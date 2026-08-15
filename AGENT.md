@@ -231,13 +231,13 @@ kubectl get gateway cluster-ingress -n envoy-gateway-system \
 
 Requires human interaction — OAuth credentials must be obtained from the Tailscale admin
 console before running `make install`. The admin console steps (enable MagicDNS, update
-ACL, create OAuth client) are documented in `README.md` § Tailscale and **must be done
+ACL, create OAuth client) are documented in `SETUP.md` § 6a and **must be done
 first**.
 
 ```bash
 cd k8s/tailscale
 cp values.secret.yaml.example values.secret.yaml
-# edit values.secret.yaml: fill in clientId + clientSecret from README § Tailscale 6a
+# edit values.secret.yaml: fill in clientId + clientSecret from SETUP.md § 6a
 make install
 ```
 

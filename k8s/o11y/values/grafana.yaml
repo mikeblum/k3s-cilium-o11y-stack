@@ -96,9 +96,9 @@ dashboards:
           value: prometheus
 
   otel:
-    # Replaces the old Alloy mixin dashboards. Backed by the collector's own
-    # :8888 self-metrics, which the `prometheus` receiver scrapes and
-    # remote-writes to Prometheus (see values/otel-collector.yaml).
+    # Backed by the collector's own :8888 self-metrics, which the `prometheus`
+    # receiver scrapes and remote-writes to Prometheus (see
+    # values/otel-collector.yaml).
     otel-collector:
       gnetId: 15983         # OpenTelemetry Collector
       revision: 30
