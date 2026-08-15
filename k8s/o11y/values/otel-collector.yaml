@@ -1,25 +1,20 @@
-# OpenTelemetry Collector — the single telemetry pipeline for the cluster.
-#
-# Two independent flows in one process:
+# OpenTelemetry Collector — the single telemetry pipeline. Two flows, one process:
 #
 #   apps   --OTLP-->    otlp receiver       --> clickhouse exporter        (logs/traces/metrics)
 #   cilium --scrape-->  prometheus/scrape   --> prometheus_remote_write    (infra metrics)
 #
-# Cilium/Hubble dashboards are PromQL, so those metrics must reach Prometheus;
-# everything OTLP goes to ClickHouse. See README "Metrics live in two stores".
+# Cilium/Hubble dashboards are PromQL, so those go to Prometheus; everything
+# OTLP goes to ClickHouse. See README "Metrics live in two stores".
 #
-# This is the ONLY place scrape targets belong — Prometheus's own discovery is
-# disabled (values/prometheus.yaml).
-#
-# Chart version is pinned in the Makefile. Requires secrets.yaml for the
-# ClickHouse password (copy from secrets.example.yaml).
+# The ONLY place scrape targets belong — Prometheus's own discovery is off.
+# Chart pinned in the Makefile; needs secrets.yaml for the ClickHouse password.
 
 mode: daemonset          # node-local: k8s_attributes filters pods by spec.nodeName
 fullnameOverride: otelcol
 
 image:
   repository: otel/opentelemetry-collector-contrib
-  tag: "0.157.0"         # contrib — the clickhouse exporter is not in the core image
+  tag: "0.157.0"
 
 resources:
   requests:
@@ -44,26 +39,14 @@ ports:
     containerPort: 4317
     servicePort: 4317
     protocol: TCP
-    hostPort: null        # daemonset defaults to a hostPort; ClusterIP is enough
+    hostPort: null
+
   otlp-http:
     enabled: true
     containerPort: 4318
     servicePort: 4318
     protocol: TCP
     hostPort: null
-
-  # External OTLP ingest. otlp-ext-http (4320) is what the Tailscale ingress fronts.
-  # Omit hostPort — the chart's schema rejects null on custom port entries.
-  otlp-ext:
-    enabled: true
-    containerPort: 4319
-    servicePort: 4319
-    protocol: TCP
-  otlp-ext-http:
-    enabled: true
-    containerPort: 4320
-    servicePort: 4320
-    protocol: TCP
 
   # Legacy wire formats we do not speak — off to avoid open ports.
   jaeger-compact:
@@ -84,38 +67,15 @@ extraEnvs:
 
 config:
   receivers:
+    # The only OTLP entry point. In-cluster: otelcol.o11y.svc.cluster.local:4317.
+    # Outside: the Tailscale ingress fronts 4318 (k8s/tailscale/manifests/).
+    # One receiver for both is safe only because of the k8s_attributes exclude below.
     otlp:
       protocols:
         grpc:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
-
-    # Ingest from outside the cluster — workstations, CI. Fronted by the
-    # Tailscale ingress (k8s/tailscale/manifests/ingress-otlp.yaml).
-    #
-    # Separate from the in-cluster `otlp` receiver because the receiver is the
-    # only pipeline selector: a processor cannot be skipped for part of one
-    # port's traffic, and two receivers cannot share a port.
-    #
-    # What has to be skipped is k8s_attributes — its pod_association ends in a
-    # `from: connection` fallback that resolves the source IP to a pod. External
-    # traffic arrives from the Tailscale proxy, so on a shared port every payload
-    # would be stamped k8s.namespace.name=tailscale, k8s.pod.name=ts-otlp-ts-*.
-    # internalTrafficPolicy: Local pins the connection to the collector on the
-    # proxy's own node, so that lookup always hits — deterministic, not a race.
-    #
-    # ServiceName is not at risk either way: k8s_attributes never overwrites an
-    # attribute the payload already carries, and senders set OTEL_SERVICE_NAME.
-    #
-    # Not a security boundary — what the tailnet can reach is set by the Ingress
-    # backend port (ingress-otlp.yaml), not by this listener existing.
-    otlp/external:
-      protocols:
-        grpc:
-          endpoint: 0.0.0.0:4319
-        http:
-          endpoint: 0.0.0.0:4320
 
     # Cilium/Hubble/operator scraping. Kubernetes SD (pod role) rather than
     # localhost — the DaemonSet happens to be node-local today, but SD keeps
@@ -178,6 +138,15 @@ config:
     batch:
       timeout: 5s
     k8s_attributes:
+      # The preset's pod_association falls back to `from: connection`, which
+      # resolves tailnet traffic to the Tailscale proxy and would stamp every
+      # external payload k8s.namespace.name=tailscale. Excluding the proxy
+      # (ts-<ingress>-<hash>-N) drops it from the pod cache so the lookup misses.
+      # Same reason jaeger-agent is excluded by default — this replaces that
+      # default, which is fine; no Jaeger here.
+      exclude:
+        pods:
+          - name: '^ts-.*'
       extract:
         metadata:
           - k8s.pod.name
@@ -237,21 +206,6 @@ config:
       metrics:
         receivers: [otlp]
         processors: [memory_limiter, k8s_attributes, batch]
-        exporters: [clickhouse]
-
-      # Same destination, minus k8s_attributes — it would attribute these to the
-      # Tailscale proxy pod. See the otlp/external receiver.
-      traces/external:
-        receivers: [otlp/external]
-        processors: [memory_limiter, batch]
-        exporters: [clickhouse]
-      logs/external:
-        receivers: [otlp/external]
-        processors: [memory_limiter, batch]
-        exporters: [clickhouse]
-      metrics/external:
-        receivers: [otlp/external]
-        processors: [memory_limiter, batch]
         exporters: [clickhouse]
 
       # Infra metrics -> Prometheus. No k8s_attributes: these carry Prometheus

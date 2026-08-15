@@ -8,7 +8,7 @@
 #   grafana      — the Grafana ClickHouse datasource (read-only)
 #
 # `default` stays locked to localhost. Keep it that way — an unauthenticated
-# superuser reachable from any pod is not worth the convenience.
+# superuser reachable from any pod is not ideal.
 #
 # Passwords are SHA-256 hashes here and plaintext in the clickhouse-auth
 # Secret (see secrets.example.yaml) — ClickHouse reads this file, the
@@ -16,6 +16,10 @@
 # BOTH. Regenerate a hash with:
 #
 #   printf '%s' 'your-password' | sha256sum
+#
+# After any tweaks to this file re-install with:
+#
+#   kubectl rollout restart statefulset/clickhouse -n o11y
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -24,6 +28,13 @@ metadata:
 data:
   00-network-override.xml: |
     <clickhouse>
+      <profiles>
+        <!-- readonly=2 permits setting changes while still rejecting INSERT and DDL. -->
+        <readonly_grafana>
+          <readonly>2</readonly>
+        </readonly_grafana>
+      </profiles>
+
       <users>
         <!-- Lock default user back to localhost — dedicated users handle all app access -->
         <default>
@@ -37,7 +48,7 @@ data:
         <grafana>
           <password_sha256_hex>3e1a5813cc0d6ca949f29a020315cfc6da9aef1597247a867f27270a203a23ff</password_sha256_hex>
           <networks><ip>::/0</ip></networks>
-          <profile>readonly</profile>
+          <profile>readonly_grafana</profile>
           <quota>default</quota>
         </grafana>
 

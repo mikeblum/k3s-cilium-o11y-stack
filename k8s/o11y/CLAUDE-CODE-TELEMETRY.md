@@ -14,11 +14,26 @@ export CLAUDE_CODE_ENABLE_TELEMETRY=1
 export OTEL_METRICS_EXPORTER=otlp
 export OTEL_LOGS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
 ```
 
-Use `http/protobuf`. The Tailscale ingress proxies HTTP, so the gRPC port is not
-exposed to the tailnet.
+`http://`, not `https://` — the endpoint is a Layer 3 Tailscale proxy with no
+certificate to terminate. WireGuard encrypts it; tailnet membership is the auth
+boundary. gRPC works too, on `:4317` of the same name.
+
+On the node itself? Skip the tailnet — Cilium's kube-proxy replacement serves
+ClusterIPs in the host netns, so the collector answers directly:
+
+```bash
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://$(kubectl get svc -n o11y otelcol \
+  -o jsonpath='{.spec.clusterIP}'):4317
+```
+
+That IP survives pod restarts, `helm upgrade` and reboots — it is held by the
+Service object, and only `helm uninstall` releases it. Do not substitute a
+`kubectl port-forward`: it dies with the pod it was bound to, silently, and
+telemetry just stops.
 
 Start a session, send a prompt, then verify:
 
@@ -89,9 +104,23 @@ Nothing here is Claude Code specific. Any OTLP client can use the same endpoint:
 
 ```bash
 export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
 export OTEL_SERVICE_NAME=my-app
 ```
+
+Or gRPC, same name, other port:
+
+```bash
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4317
+export OTEL_SERVICE_NAME=my-app
+```
+
+Both work because the endpoint is a `loadBalancerClass: tailscale` Service —
+the operator's Layer 3 proxy, DNAT over raw TCP, so it carries HTTP/2 end to
+end. An Ingress would be Layer 7 (`tailscale serve`, HTTP only) and could not
+serve gRPC at all. The cost of one name for both is TLS: Layer 3 has no cert,
+hence `http://` and explicit ports. See `k8s/tailscale/manifests/service-otlp.yaml`.
 
 `OTEL_SERVICE_NAME` becomes the `ServiceName` column — set it per producer.
 

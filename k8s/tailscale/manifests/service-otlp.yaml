@@ -1,0 +1,49 @@
+# OTLP ingest from outside the cluster — workstations, CI — at
+# otlp.<tailnet>.ts.net, both protocols on one tailnet name:
+#
+#   :4318  http/protobuf
+#   :4317  grpc
+#
+# A Service, not an Ingress. An Ingress gets the operator's Layer 7 proxy
+# (`tailscale serve`, HTTP only), which cannot carry gRPC — that needs HTTP/2
+# end to end, trailers included. `loadBalancerClass: tailscale` gets the Layer 3
+# proxy instead, which DNATs raw TCP and does not inspect the protocol, so one
+# node serves both. The operator creates one proxy per resource, so an Ingress
+# for HTTPS plus a Service for gRPC would mean two tailnet names.
+#
+# Cilium's LB IPAM ignores a loadBalancerClass it does not own, so this takes no
+# address from lan-pool despite being type LoadBalancer.
+#
+# The trade for one name is TLS: Layer 3 has no cert to terminate, so this is
+# plaintext over WireGuard and the URL is http:// with an explicit port, not
+# https://. Tailnet membership is still the auth boundary, as with Grafana.
+# Traffic arrives from a ts-* pod, which the collector's k8s_attributes exclude
+# already covers, so payloads are not tagged with the tailscale namespace.
+apiVersion: v1
+kind: Service
+metadata:
+  name: otlp-ts
+  namespace: o11y
+  annotations:
+    tailscale.com/tags: "tag:k8s-ingress"
+    tailscale.com/hostname: "otlp"
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  # type: LoadBalancer allocates a NodePort per port by default, which Cilium
+  # then serves on every node interface — an accidental LAN opening on 3xxxx.
+  # The Layer 3 proxy DNATs to the ClusterIP and never uses them.
+  allocateLoadBalancerNodePorts: false
+  selector:
+    app.kubernetes.io/instance: otelcol
+    app.kubernetes.io/name: opentelemetry-collector
+    component: agent-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
