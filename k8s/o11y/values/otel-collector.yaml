@@ -1,18 +1,13 @@
-# OpenTelemetry Collector — the single telemetry pipeline for the cluster.
-#
-# Two independent flows in one process:
+# OpenTelemetry Collector — the single telemetry pipeline. Two flows, one process:
 #
 #   apps   --OTLP-->    otlp receiver       --> clickhouse exporter        (logs/traces/metrics)
 #   cilium --scrape-->  prometheus/scrape   --> prometheus_remote_write    (infra metrics)
 #
-# Cilium/Hubble dashboards are PromQL, so those metrics must reach Prometheus;
-# everything OTLP goes to ClickHouse. See README "Metrics live in two stores".
+# Cilium/Hubble dashboards are PromQL, so those go to Prometheus; everything
+# OTLP goes to ClickHouse. See README "Metrics live in two stores".
 #
-# This is the ONLY place scrape targets belong — Prometheus's own discovery is
-# disabled (values/prometheus.yaml).
-#
-# Chart version is pinned in the Makefile. Requires secrets.yaml for the
-# ClickHouse password (copy from secrets.example.yaml).
+# The ONLY place scrape targets belong — Prometheus's own discovery is off.
+# Chart pinned in the Makefile; needs secrets.yaml for the ClickHouse password.
 
 mode: daemonset          # node-local: k8s_attributes filters pods by spec.nodeName
 fullnameOverride: otelcol
@@ -44,11 +39,9 @@ ports:
     containerPort: 4317
     servicePort: 4317
     protocol: TCP
-    hostPort: null        # required, not noise: the chart defaults daemonset
-                          # ports to a hostPort, and hostPort is forbidden by the
-                          # namespace's `enforce: baseline` PodSecurity label —
-                          # the DaemonSet silently creates zero pods. ClusterIP
-                          # is enough; see namespace.yaml.
+    hostPort: null        # keep: the chart defaults daemonset ports to a hostPort,
+                          # which `enforce: baseline` rejects — the DaemonSet then
+                          # runs zero pods and Helm still reports success.
   otlp-http:
     enabled: true
     containerPort: 4318
@@ -75,13 +68,9 @@ extraEnvs:
 
 config:
   receivers:
-    # The only OTLP entry point, on the standard ports. In-cluster workloads
-    # reach it at otelcol.o11y.svc.cluster.local:4317; producers outside the
-    # cluster come through the Tailscale ingress
-    # (k8s/tailscale/manifests/ingress-otlp.yaml), which fronts 4318.
-    #
-    # One receiver for both is only safe because k8s_attributes excludes the
-    # Tailscale proxy pods — see the processor below.
+    # The only OTLP entry point. In-cluster: otelcol.o11y.svc.cluster.local:4317.
+    # Outside: the Tailscale ingress fronts 4318 (k8s/tailscale/manifests/).
+    # One receiver for both is safe only because of the k8s_attributes exclude below.
     otlp:
       protocols:
         grpc:
@@ -174,21 +163,12 @@ config:
     batch:
       timeout: 5s
     k8s_attributes:
-      # Telemetry relayed by another pod must not inherit that pod's identity.
-      # The preset's pod_association ends in a `from: connection` fallback that
-      # resolves the source IP to a pod; traffic off the tailnet arrives from
-      # the Tailscale proxy (ts-otlp-ts-*), and internalTrafficPolicy: Local
-      # pins it to the collector on the proxy's own node, so that lookup would
-      # always hit and stamp k8s.namespace.name=tailscale on every payload.
-      # Excluding the proxy drops it from the pod cache, the association misses,
-      # and external telemetry is left with no k8s.* attributes — correct, since
-      # it did not come from a pod. This is the same reason the processor
-      # excludes jaeger-agent/jaeger-collector by default; setting `exclude`
-      # replaces those defaults, which is fine — we do not run Jaeger.
-      #
-      # Match the Tailscale operator's proxy naming (ts-<ingress>-<hash>-N). If
-      # that ever changes, external telemetry starts arriving tagged as the
-      # tailscale namespace — cosmetic, not an exposure.
+      # The preset's pod_association falls back to `from: connection`, which
+      # resolves tailnet traffic to the Tailscale proxy and would stamp every
+      # external payload k8s.namespace.name=tailscale. Excluding the proxy
+      # (ts-<ingress>-<hash>-N) drops it from the pod cache so the lookup misses.
+      # Same reason jaeger-agent is excluded by default — this replaces that
+      # default, which is fine; no Jaeger here.
       exclude:
         pods:
           - name: '^ts-.*'
