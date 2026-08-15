@@ -21,6 +21,20 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
 certificate to terminate. WireGuard encrypts it; tailnet membership is the auth
 boundary. gRPC works too, on `:4317` of the same name.
 
+On the node itself? Skip the tailnet — Cilium's kube-proxy replacement serves
+ClusterIPs in the host netns, so the collector answers directly:
+
+```bash
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://$(kubectl get svc -n o11y otelcol \
+  -o jsonpath='{.spec.clusterIP}'):4317
+```
+
+That IP survives pod restarts, `helm upgrade` and reboots — it is held by the
+Service object, and only `helm uninstall` releases it. Do not substitute a
+`kubectl port-forward`: it dies with the pod it was bound to, silently, and
+telemetry just stops.
+
 Start a session, send a prompt, then verify:
 
 ```sql
