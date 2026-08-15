@@ -17,8 +17,8 @@ export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.<tailnet>.ts.net
 ```
 
-Use `http/protobuf`. The Tailscale ingress proxies HTTP, so the gRPC port is not
-exposed to the tailnet.
+`http/protobuf` above is not a preference — the Tailscale ingress terminates TLS
+and proxies HTTP, so OTLP/gRPC is unreachable over the tailnet.
 
 Start a session, send a prompt, then verify:
 
