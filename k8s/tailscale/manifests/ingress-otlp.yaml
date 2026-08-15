@@ -1,15 +1,10 @@
-# Exposes the OTel Collector's external OTLP endpoint at
-# https://otlp.<tailnet>.ts.net — for telemetry from outside the cluster
-# (workstations, CI). See k8s/o11y/CLAUDE-CODE-TELEMETRY.md.
+# OTLP ingest from outside the cluster (workstations, CI) at
+# https://otlp.<tailnet>.ts.net. In-cluster workloads use
+# otelcol.o11y.svc.cluster.local:4317. See k8s/o11y/CLAUDE-CODE-TELEMETRY.md.
 #
-# In-cluster workloads use otelcol.o11y.svc.cluster.local:4317 instead.
-#
-# Backend is the collector's standard OTLP/HTTP port. Senders must use
-# OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf — the ingress terminates TLS and
-# proxies HTTP, so 4317 (gRPC) is not reachable this way.
-#
-# Unauthenticated: tailnet membership is the auth boundary, same as Grafana.
-# First connection takes 30-60s while Let's Encrypt issues the cert.
+# Senders need OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf — this proxies HTTP,
+# so 4317 (gRPC) is unreachable here. Auth is tailnet membership, same as
+# Grafana. First connection takes 30-60s while Let's Encrypt issues the cert.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
