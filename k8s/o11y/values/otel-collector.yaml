@@ -181,9 +181,11 @@ config:
 
   exporters:
     clickhouse:
-      endpoint: tcp://clickhouse.o11y.svc.cluster.local:9000?dial_timeout=10s
+      # Stable ClusterIP from manifests/clickhouse-service.yaml, not the
+      # operator's derived <cr-name>-clickhouse-headless.
+      endpoint: tcp://clickhouse-server.o11y.svc.cluster.local:9000?dial_timeout=10s
       database: otel
-      username: otel_writer          # manifests/clickhouse-users-override.yaml
+      username: otel_writer          # manifests/clickhouse-cluster.yaml
       password: ${env:CLICKHOUSE_PASSWORD}
       logs_table_name: otel_logs
       traces_table_name: otel_traces

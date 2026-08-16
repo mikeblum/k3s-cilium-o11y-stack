@@ -93,9 +93,11 @@ make o11y-status
 Expected steady state:
 
 ```
-otelcol-agent-xxxxx              1/1  Running   # DaemonSet — one per node
-clickhouse-0                     1/1  Running
-grafana-xxxxx                    2/2  Running   # + datasource sidecar
+otelcol-agent-xxxxx                     1/1  Running   # DaemonSet — one per node
+clickhouse-operator-controller-manager-x 1/1  Running
+clickhouse-keeper-0-0                    1/1  Running
+clickhouse-clickhouse-0-0-0              1/1  Running
+grafana-xxxxx                            2/2  Running   # + datasource sidecar
 prometheus-server-xxxxx          2/2  Running   # + configmap-reload sidecar
 prometheus-kube-state-metrics-x  1/1  Running
 ```
@@ -165,12 +167,13 @@ cd k8s/tailscale && make status
 ```bash
 curl -I https://grafana.example.local
 
-kubectl exec -n o11y clickhouse-0 -- \
+kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- \
   clickhouse-client --query "SELECT count() FROM otel.otel_logs"
 ```
 
 > A count of `0` with a healthy collector just means nothing has sent OTLP yet.
 >
-> The collector authenticates to ClickHouse as `otel_writer`. Its password lives
-> in the gitignored `k8s/o11y/secrets.yaml`; the SHA-256 of the same password is
-> in `manifests/clickhouse-users-override.yaml`. Rotating means updating both.
+> The collector authenticates to ClickHouse as `otel_writer`. That password, and
+> the ones for `grafana` and `default`, all live in the gitignored
+> `k8s/o11y/secrets.yaml` — the operator feeds them to the server, so rotating is
+> a one-file edit plus `kubectl rollout restart statefulset/clickhouse-clickhouse-0-0 -n o11y`.

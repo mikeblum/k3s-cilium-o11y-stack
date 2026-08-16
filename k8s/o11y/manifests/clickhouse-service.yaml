@@ -1,0 +1,44 @@
+---
+# A stable ClusterIP in front of the operator-managed ClickHouse pods.
+#
+# Two reasons this exists rather than everything using the operator's own
+# `clickhouse-clickhouse-headless`:
+#
+#   1. The Tailscale operator proxies an Ingress to its backend Service's
+#      ClusterIP. A headless Service has none, so it rejects the backend with
+#      "Ingress contains no valid backends" and silently keeps serving its
+#      previous config. Envoy Gateway is fine either way — it routes off
+#      EndpointSlices — but Tailscale is not.
+#   2. It decouples the rest of the repo from names the operator derives from
+#      the CR. Rename the ClickHouseCluster and only this file changes.
+#
+# The selector tracks labels the operator puts on its pods, NOT ones we set. If
+# an operator upgrade changes them this Service goes to zero endpoints — check
+# `kubectl get endpointslice -n o11y -l kubernetes.io/service-name=clickhouse-server`
+# after bumping CHOP_VERSION.
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse-server
+  namespace: o11y
+  labels:
+    app.kubernetes.io/name: clickhouse-server
+    app.kubernetes.io/managed-by: o11y-makefile
+spec:
+  type: ClusterIP
+  selector:
+    app: clickhouse-clickhouse            # <cr-name>-clickhouse
+    clickhouse.com/role: clickhouse-server
+  ports:
+    - name: http
+      port: 8123
+      targetPort: 8123
+      protocol: TCP
+    - name: tcp
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+    - name: prometheus
+      port: 9363
+      targetPort: 9363
+      protocol: TCP

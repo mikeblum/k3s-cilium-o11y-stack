@@ -24,6 +24,8 @@ Since we're using eBPF-powered Cilium to instrument and visualize our stack's ne
 
 Using Grafana and Hubble for visualizations gives us the best of both worlds - a vibrant collection of Grafana dashboards alongside out-of-the-box visualizations of the stack's network via Hubble. Exposing the base components of ClickHouse and Cilium gives operators a deeper view of how telemetry flows compared to a more all-in-one solution like Signoz or Grafana's LGTM omnibus images.
 
+That said, we do take ClickStack's foundation. The `clickstack` chart bundles HyperDX, MongoDB, and its own OTel Collector on top of the [official ClickHouse operator](https://github.com/ClickHouse/clickhouse-operator), and HyperDX cannot be switched off. So we install that operator directly and declare the `KeeperCluster` + `ClickHouseCluster` ourselves in [`k8s/o11y/manifests/clickhouse-cluster.yaml`](k8s/o11y/manifests/clickhouse-cluster.yaml) - same upstream ClickHouse, none of the parts Grafana already covers.
+
 This observability stack is opinionated in that eBPF is The Way ™️ for observing and securing networks. But to-date its unclear how eBPF meshes with the other traditional pillars of observability: metrics, traces, and logs. By deploying Cilium as the CNI we can do meta-analysis of how telemetry data flows - versus today were a blackbox sidecar is spun up alongside your application and its assumed your data will make it upstream to your vendor of choice.
 
 ## Components
@@ -38,7 +40,7 @@ This observability stack is opinionated in that eBPF is The Way ™️ for obser
 | [Prometheus](https://prometheus.io) | Observability | Time-series store for infra metrics; backs the Cilium dashboards | internal |
 | [OTel Collector](https://opentelemetry.io/docs/collector/) | Observability | Receives OTLP → ClickHouse; scrapes Cilium/Hubble/host → Prometheus | `:4317/:4318` |
 | [node-exporter](https://github.com/prometheus/node_exporter) | Observability | Host metrics for the node itself — CPU, memory, disk, filesystem, network | internal |
-| [ClickHouse](https://clickhouse.com) | Observability | OLAP database; backend store for logs, traces, and metrics | internal |
+| [ClickHouse](https://clickhouse.com) | Observability | OLAP database; backend store for logs, traces, and metrics. Run by ClickHouse's [official Kubernetes operator](https://github.com/ClickHouse/clickhouse-operator) | internal |
 | [Grafana](https://grafana.com) | Observability | Dashboards and visualization over Prometheus + ClickHouse | `grafana.<domain>` |
 | [Tailscale Operator](https://tailscale.com/kb/1236/kubernetes-operator) | Remote access | *(optional)* Exposes services to your tailnet with auto-provisioned Let's Encrypt TLS | — |
 
@@ -75,7 +77,14 @@ you query the wrong one:
   cilium-operator, collector self-metrics, node-exporter, apiserver, nodes,
   cadvisor, kube-state-metrics.
 - **ClickHouse** (`clickhouse` datasource, SQL) — everything arriving over OTLP:
-  app logs, traces, and metrics.
+  app logs, traces, and metrics, plus ClickHouse's own `system` log tables.
+
+Grafana ships with four folders of provisioned dashboards: **Cilium** and
+**Host** (PromQL), **OTel** (the collector's own metrics, plus log/trace/service
+explorers over ClickHouse), and **ClickHouse** — query, cluster, data, and
+system-metrics dashboards from the [ClickHouse datasource
+plugin](https://github.com/grafana/clickhouse-datasource/tree/main/src/dashboards)
+for watching the database itself.
 
 **Scraping lives in the collector, not Prometheus.** Prometheus's
 annotation-driven discovery is off, so `prometheus.io/scrape` on a pod does
@@ -130,7 +139,7 @@ kubectl get secret example-local-tls -n envoy-gateway-system   # dots-to-dashes 
 **ClickHouse not receiving data:**
 ```bash
 kubectl logs -n o11y ds/otelcol-agent --tail=30
-kubectl exec -n o11y clickhouse-0 -- clickhouse-client \
+kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- clickhouse-client \
   --query "SELECT ServiceName, count() FROM otel.otel_logs GROUP BY ServiceName"
 ```
 

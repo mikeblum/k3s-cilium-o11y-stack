@@ -10,7 +10,7 @@ stack autonomously on a fresh Linux host. Read it top to bottom; do not skip ste
 Single-node k3s cluster running:
 - **Cilium** CNI (kube-proxy replacement, Hubble UI, L2 LoadBalancer)
 - **Envoy Gateway** (HTTPS ingress via mkcert wildcard cert)
-- **Grafana 13** + **Prometheus** + **OTel Collector** (DaemonSet) + **ClickHouse** + **node-exporter**
+- **Grafana 13** + **Prometheus** + **OTel Collector** (DaemonSet) + **ClickHouse** (official operator) + **node-exporter**
 
 **Linux only.** Tested on Pop!_OS 24.04 / Ubuntu 24.04 (kernel 6.x). Not tested on macOS or Windows.
 
@@ -185,9 +185,14 @@ kubectl get gateway cluster-ingress -n envoy-gateway-system \
 make o11y-install
 ```
 
-This installs (in order): ClickHouse → Prometheus → node-exporter → OTel Collector → Grafana,
-then applies all manifests and HTTPRoutes. It requires `k8s/o11y/secrets.yaml`
-(gitignored — copy from `secrets.example.yaml`) for the ClickHouse passwords.
+This installs (in order): ClickHouse operator + cluster → Prometheus → node-exporter →
+OTel Collector → Grafana, then applies all manifests and HTTPRoutes. It requires
+`k8s/o11y/secrets.yaml` (gitignored — copy from `secrets.example.yaml`) for the
+ClickHouse passwords.
+
+The ClickHouse step blocks until the `KeeperCluster` and `ClickHouseCluster` CRs
+report `Ready`, so a failure there stops the install rather than leaving a
+collector retrying against a database that never came up.
 
 **Success:**
 ```bash
@@ -197,7 +202,7 @@ make o11y-status
 
 Verify data flow end-to-end:
 ```bash
-kubectl exec -n o11y clickhouse-0 -- \
+kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- \
   clickhouse-client --query "SHOW TABLES FROM otel"
 # Expected: otel_logs, otel_traces, otel_metrics_* tables listed
 ```
@@ -291,7 +296,7 @@ make o11y-status
 kubectl get gateway cluster-ingress -n envoy-gateway-system
 
 # 3. ClickHouse tables created
-kubectl exec -n o11y clickhouse-0 -- \
+kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- \
   clickhouse-client --query "SHOW TABLES FROM otel"
 
 # 4. Grafana reachable (via LB IP with Host header)
