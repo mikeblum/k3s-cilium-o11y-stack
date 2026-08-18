@@ -28,6 +28,17 @@ plugins:
 sidecar:
   datasources:
     enabled: true   # auto-loads datasources from ConfigMaps with grafana_datasource=1 label
+  # For dashboards that ship as JSON rather than a grafana.com gnetId — they
+  # arrive as ConfigMaps labelled grafana_dashboard=1, with the target folder in
+  # a grafana_folder annotation. k8s/otel-demo uses this; the gnetId dashboards
+  # below keep using the file-based providers.
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    folderAnnotation: grafana_folder
+    provider:
+      foldersFromFilesStructure: true
 
 # Supplies $__env{CLICKHOUSE_GRAFANA_PASSWORD} to the provisioned ClickHouse
 # datasource in manifests/grafana-datasources-configmap.yaml.

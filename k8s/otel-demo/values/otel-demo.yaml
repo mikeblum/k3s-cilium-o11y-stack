@@ -1,0 +1,58 @@
+# OpenTelemetry Demo — the microservice workload that exercises in-cluster OTLP
+# ingest. Deployed per https://opentelemetry.io/docs/demo/kubernetes-deployment/
+#
+#   demo services --OTLP--> otelcol.o11y --> ClickHouse
+#
+# The demo's own collector is off; services talk to the o11y collector directly.
+# Every component builds its endpoint from OTEL_COLLECTOR_NAME, so repointing
+# that one variable moves all of them. Direct connections also fix enrichment:
+# o11y's k8s_attributes resolves `from: connection` to the calling pod, which is
+# now the actual service rather than a forwarder.
+#
+# What the demo collector took with it: the span_metrics connector (rebuilt in
+# k8s/o11y/values/otel-collector.yaml, which is what the Spanmetrics dashboard
+# reads) and its OTTL span-name sanitisation (not rebuilt — see README).
+# The four bundled backends are off; o11y already runs Grafana, Prometheus and
+# ClickHouse, and this stack has one place telemetry lands.
+
+default:
+  # Replaces the default `otel-collector` by name (see otel-demo.envOverriden in
+  # the chart's _helpers.tpl) across every component that inherits default.env.
+  envOverrides:
+    - name: OTEL_COLLECTOR_NAME
+      value: otelcol.o11y.svc.cluster.local
+
+opentelemetry-collector:
+  enabled: false
+
+components:
+  # The two JVM services ship with a 300Mi limit and are OOMKilled a few seconds
+  # into startup here — the JVM plus the OTel Java agent does not fit. Upstream
+  # tunes these for a constrained CI runner; this node has memory to spare.
+  ad:
+    resources:
+      limits:
+        memory: 768Mi
+  fraud-detection:
+    resources:
+      limits:
+        memory: 768Mi
+  # The load generator drives a headless Chromium alongside its HTTP load. The
+  # browser costs far more memory and /dev/shm than the rest of the pod (hence
+  # the chart's default no-sandbox,disable-dev-shm-usage args) and exercises
+  # nothing the HTTP traffic does not already push through the OTLP path.
+  # envOverrides upserts by name, so the other env entries are left alone.
+  load-generator:
+    envOverrides:
+      - name: K6_BROWSER_ENABLED
+        value: "false"
+
+jaeger:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  enabled: false
+opensearch:
+  enabled: false
+
