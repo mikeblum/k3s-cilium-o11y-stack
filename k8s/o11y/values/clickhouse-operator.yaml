@@ -1,0 +1,48 @@
+# Official ClickHouse Kubernetes Operator — https://github.com/ClickHouse/clickhouse-operator
+# Chart is OCI-only: oci://ghcr.io/clickhouse/clickhouse-operator-helm
+#
+# This is the same operator ClickStack runs on. Their docs tell you to install
+# `clickstack/clickstack-operators` then `clickstack/clickstack`, but that pair
+# brings along things we already have or do not want:
+#
+#   clickstack-operators -> MongoDB (MCK) operator + this operator
+#   clickstack           -> HyperDX + MongoDB CR + ClickHouse CRs + a second
+#                           OTel Collector subchart
+#
+# HyperDX cannot be turned off — templates/hyperdx/{deployment,service,configmap}
+# render unconditionally; only `mongodb.enabled`, `clickhouse.enabled`, and
+# `otel-collector.enabled` exist. We run Grafana and our own collector (see
+# values/otel-collector.yaml), so we take the operator on its own and write the
+# cluster CR ourselves in manifests/clickhouse-cluster.yaml.
+#
+# The operator owns clickhouseclusters + keeperclusters in clickhouse.com/v1alpha1.
+
+# Keeps resource names as `clickhouse-operator-*` instead of the chart's
+# doubled-up `clickhouse-operator-clickhouse-operator-helm-*`.
+fullnameOverride: clickhouse-operator
+
+# No cert-manager in this cluster, and the admission webhook needs a serving
+# cert. ClickStack's own operators chart makes the same two calls.
+webhook:
+  enabled: false
+
+certManager:
+  enabled: false
+
+crd:
+  enabled: true
+  keep: true      # `helm uninstall` must not garbage-collect the CRDs, which
+                  # would cascade-delete the ClickHouseCluster and its PVC
+
+# Defaults to HTTPS using a cert-manager-issued cert. With certManager off that
+# cert never exists, so serve metrics over plain HTTP instead. Nothing scrapes
+# these today — the endpoint is clickhouse-operator-metrics-service:8080.
+metrics:
+  enabled: true
+  secure: false
+
+controller:
+  # Reconcile only in o11y. Without this the operator watches every namespace
+  # and any of them could ask for a ClickHouse cluster.
+  watchNamespaces:
+    - o11y

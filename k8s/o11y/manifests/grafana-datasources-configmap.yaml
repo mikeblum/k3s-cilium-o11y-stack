@@ -22,11 +22,14 @@ data:
         uid: clickhouse
         isDefault: true
         jsonData:
-          host: clickhouse.o11y.svc.cluster.local
+          # Stable ClusterIP from manifests/clickhouse-service.yaml, not the
+          # operator's derived <cr-name>-clickhouse-headless.
+          host: clickhouse-server.o11y.svc.cluster.local
           port: 9000
           protocol: native
-          # The 'default' user is locked to localhost; 'grafana' is the read-only
-          # user from manifests/clickhouse-users-override.yaml.
+          # 'grafana' is the read-only user from manifests/clickhouse-cluster.yaml.
+          # The ClickHouse dashboards provisioned in values/grafana.yaml run
+          # unqualified queries, so defaultDatabase is what points them at otel.
           username: grafana
           defaultDatabase: otel
           logs:

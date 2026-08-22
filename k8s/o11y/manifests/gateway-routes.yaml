@@ -6,6 +6,7 @@
 # LAN access requires /etc/hosts on your desktop:
 #   <host-ip>  grafana.${DOMAIN}
 #   <host-ip>  hubble.${DOMAIN}
+#   <host-ip>  clickhouse.${DOMAIN}
 #
 # Tailscale access (no hosts file, Let's Encrypt TLS, works anywhere):
 #   https://grafana.<tailnet>.ts.net
@@ -54,6 +55,37 @@ spec:
       backendRefs:
         - name: grafana
           port: 80
+
+---
+# ClickHouse HTTP interface (8123) — for clickhouse-client --host, curl, and
+# anything that speaks the HTTP protocol rather than native 9000.
+#
+# Backed by the stable ClusterIP in manifests/clickhouse-service.yaml rather
+# than the operator's headless Service, so this survives a CR rename.
+#
+# Unauthenticated at the gateway — ClickHouse itself is the only thing checking
+# credentials, and `default` is a superuser. Its password lives in the
+# clickhouse-auth Secret; do not leave that as the example value.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: clickhouse
+  namespace: o11y
+spec:
+  parentRefs:
+    - name: cluster-ingress
+      namespace: envoy-gateway-system
+      sectionName: https
+  hostnames:
+    - clickhouse.${DOMAIN}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: clickhouse-server
+          port: 8123
 
 ---
 # Hubble UI — host-based, HTTPS, served at /

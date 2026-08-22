@@ -1,0 +1,151 @@
+---
+# ClickHouse, run by the official operator (values/clickhouse-operator.yaml).
+#
+# Resource names are derived by the operator, not chosen by us. For CRs named
+# `clickhouse` you get:
+#
+#   Service    clickhouse-clickhouse-headless   8123 http / 9000 tcp / 9363 prometheus
+#   StatefulSet/Pod  clickhouse-clickhouse-0-0 / clickhouse-clickhouse-0-0-0
+#   Service    clickhouse-keeper-headless       2181
+#   StatefulSet/Pod  clickhouse-keeper-0 / clickhouse-keeper-0-0
+#
+# `clickhouse-clickhouse-headless.o11y.svc.cluster.local` is what the collector
+# and the Grafana datasource connect to. Renaming these CRs renames that host.
+#
+# Keeper is not optional: `keeperClusterRef` is a required field on
+# ClickHouseCluster even for a single replica. One replica of each is right for
+# a single-node homelab — the operator defaults to 3 of both.
+apiVersion: clickhouse.com/v1alpha1
+kind: KeeperCluster
+metadata:
+  name: clickhouse
+  namespace: o11y
+spec:
+  replicas: 1
+  containerTemplate:
+    image:
+      repository: clickhouse/clickhouse-keeper
+      tag: "26.3-alpine"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+  dataVolumeClaimSpec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 5Gi
+    # storageClassName omitted on purpose — that takes the cluster default
+    # (local-path on k3s). Setting it to "" would disable dynamic provisioning.
+---
+apiVersion: clickhouse.com/v1alpha1
+kind: ClickHouseCluster
+metadata:
+  name: clickhouse
+  namespace: o11y
+spec:
+  replicas: 1
+  shards: 1
+
+  keeperClusterRef:
+    name: clickhouse       # the KeeperCluster above; namespace defaults to ours
+
+  containerTemplate:
+    # 26.3 is the current LTS. ClickStack 3.1.1 pins 25.7-alpine against this
+    # same operator, so drop back to that if a version-specific bug shows up.
+    image:
+      repository: clickhouse/clickhouse-server
+      tag: "26.3-alpine"
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 2
+        memory: 4Gi
+    # Passwords for the two users defined under extraUsersConfig below. The
+    # operator merges this list into the container it builds, so its own
+    # CLICKHOUSE_* vars are left alone.
+    env:
+      - name: OTEL_WRITER_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: clickhouse-auth        # see secrets.example.yaml
+            key: OTEL_WRITER_PASSWORD
+      - name: GRAFANA_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: clickhouse-auth
+            key: GRAFANA_PASSWORD
+
+  dataVolumeClaimSpec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 50Gi
+
+  settings:
+    # Without this the operator gives `default` no_password plus
+    # `GRANT ALL ON *.* WITH GRANT OPTION`, listening on ::. Not something to
+    # leave reachable from every pod in the cluster.
+    #
+    # passwordType `password` (plaintext in the Secret) rather than
+    # password_sha256_hex: the operator only wires the password into the
+    # in-pod /etc/clickhouse-client config for the plaintext type, and that is
+    # what makes `kubectl exec ... clickhouse-client` work without arguments.
+    defaultUserPassword:
+      passwordType: password
+      secret:
+        name: clickhouse-auth
+        key: DEFAULT_PASSWORD
+
+    # Two dedicated users, one per consumer, instead of sharing `default`.
+    # Rendered to /etc/clickhouse-server/users.d/99-extra-users-config.yaml and
+    # merged over the operator's own users file.
+    #
+    # These are SQL grants, not the old profile+<databases> scheme: a user with
+    # a `grants` block gets exactly what is listed and nothing else.
+    #
+    # Multiple grants MUST be written as a list under `grants.query`. The
+    # obvious-looking `grants: [{query: A}, {query: B}]` converts to three
+    # separate <grants> elements and ClickHouse silently applies only the
+    # first — you get a user that authenticates fine and then fails every
+    # query with ACCESS_DENIED. The form below produces one <grants> element
+    # with a <query> child per entry, which is what ClickHouse reads.
+    extraUsersConfig:
+      users:
+        # The collector's clickhouse exporter. create_schema: true means it
+        # runs CREATE DATABASE IF NOT EXISTS otel and CREATE TABLE on first
+        # write, so it needs CREATE. ALTER is there for the retention change
+        # documented in values/otel-collector.yaml.
+        otel_writer:
+          password:
+            - '@from_env': OTEL_WRITER_PASSWORD
+          profile: default
+          quota: default
+          grants:
+            query:
+              - "GRANT SHOW, SELECT, INSERT, ALTER, CREATE ON otel.*"
+
+        # The Grafana ClickHouse datasource. Reads our telemetry, plus the
+        # system log tables behind the ClickHouse dashboards in values/grafana.yaml.
+        grafana:
+          password:
+            - '@from_env': GRAFANA_PASSWORD
+          profile: grafana_readonly
+          quota: default
+          grants:
+            query:
+              - "GRANT SHOW ON *.*"
+              - "GRANT SELECT ON system.*"
+              - "GRANT SELECT ON otel.*"
+
+      profiles:
+        # readonly=2 permits session setting changes while still rejecting
+        # INSERT and DDL. readonly=1 would break the datasource.
+        grafana_readonly:
+          readonly: 2

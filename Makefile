@@ -22,7 +22,7 @@ export KUBECONFIG
         cilium-install cilium-upgrade cilium-status cilium-lb \
         tls-install tls-check-expiry \
         gateway-install gateway-apply \
-        o11y-install o11y-uninstall o11y-status o11y-routes \
+        o11y-install o11y-uninstall o11y-status o11y-routes o11y-clickhouse \
         otel-demo-install otel-demo-uninstall otel-demo-status \
         tailscale-install tailscale-status
 
@@ -40,7 +40,7 @@ setup:
 	 echo "All prerequisites satisfied." || true
 
 help:
-	@echo "example.local IaC: k3s + Cilium + Envoy Gateway + ClickHouse ClickStack + Tailscale"
+	@echo "example.local IaC: k3s + Cilium + Envoy Gateway + ClickHouse + Tailscale"
 	@echo ""
 	@echo "Variables (override on any target):"
 	@echo "  DOMAIN                = $(DOMAIN)"
@@ -58,6 +58,7 @@ help:
 	@echo "  make tls-install          Generate mkcert wildcard cert + k8s Secret"
 	@echo "  make gateway-apply        Apply cluster-ingress Gateway + GatewayClass"
 	@echo "  make o11y-install         Install full o11y stack (Helm + manifests)"
+	@echo "  make o11y-clickhouse      Re-apply just the ClickHouse operator + cluster"
 	@echo "  make tailscale-install    Install Tailscale operator + ingress resources"
 	@echo ""
 	@echo "Optional workloads:"
@@ -130,6 +131,11 @@ o11y-uninstall:
 
 o11y-status:
 	@$(MAKE) -C k8s/o11y status
+
+# Just the ClickHouse operator + cluster CRs. `o11y-install` runs this first;
+# call it on its own after editing manifests/clickhouse-cluster.yaml.
+o11y-clickhouse:
+	@$(MAKE) -C k8s/o11y clickhouse
 
 o11y-routes:
 	@$(MAKE) -C k8s/o11y routes

@@ -22,8 +22,12 @@ grafana.ini:
   users:
     auto_assign_org_role: Admin   # applies to real logins only, NOT anonymous users
 
+# Version-pinned to stay in lockstep with the dashboards below, which are
+# fetched from this plugin's repo at the same tag. Unpinned, Grafana installs
+# whatever the catalog serves at pod start and the two can drift apart.
+# 4.20 is what added the three out-of-box OpenTelemetry dashboards.
 plugins:
-  - grafana-clickhouse-datasource
+  - grafana-clickhouse-datasource 4.20.0
 
 sidecar:
   datasources:
@@ -32,6 +36,20 @@ sidecar:
   # arrive as ConfigMaps labelled grafana_dashboard=1, with the target folder in
   # a grafana_folder annotation. k8s/otel-demo uses this; the gnetId dashboards
   # below keep using the file-based providers.
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    folderAnnotation: grafana_folder
+    provider:
+      foldersFromFilesStructure: true
+
+  # Loads dashboards from ConfigMaps labelled grafana_dashboard=1 in this
+  # namespace — how the otel-demo ships its spanmetrics dashboard. Distinct from
+  # the `dashboards:` block below, which downloads JSON at pod startup: this one
+  # picks up whatever is applied to the cluster, without a Grafana restart.
+  # The grafana_folder annotation on the ConfigMap names the target folder, which
+  # only takes effect with foldersFromFilesStructure.
   dashboards:
     enabled: true
     label: grafana_dashboard
@@ -80,18 +98,28 @@ dashboardProviders:
         allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/host
+      - name: clickhouse
+        folder: ClickHouse
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/clickhouse
 
-# Dashboards downloaded from grafana.com at pod startup by the
-# download-dashboards init container. Top-level key must match a provider name
-# above; each entry becomes /var/lib/grafana/dashboards/<provider>/<key>.json.
+# Dashboards fetched at pod startup by the download-dashboards init container.
+# Top-level key must match a provider name above; each entry becomes
+# /var/lib/grafana/dashboards/<provider>/<key>.json.
 #
-# Renaming a key strands the old JSON on the PVC. Two files sharing a gnetId
-# duplicate a dashboard UID, and Grafana then revokes write permission for the
-# whole provider — rm the stale file from /var/lib/grafana/dashboards/<provider>/.
+# Renaming a key strands the old JSON on the PVC. Two files sharing a dashboard
+# UID make Grafana revoke write permission for the whole provider — rm the stale
+# file from /var/lib/grafana/dashboards/<provider>/.
 #
-# All of these are PromQL against the `prometheus` datasource. ClickHouse-backed
-# log/trace dashboards ship inside the plugin instead — import them via
-# Connections → Data Sources → ClickHouse → Dashboards.
+# Entries with `gnetId` come from grafana.com and are PromQL against the
+# `prometheus` datasource. Entries with `url` come from the ClickHouse datasource
+# plugin, which ships its dashboards in-repo rather than publishing them to
+# grafana.com — the plugin UI offers them under Connections → Data Sources →
+# ClickHouse → Dashboards, and we provision the same JSON so they survive a
+# reinstall. The tag in those URLs is pinned; bump it with the plugin.
 dashboards:
   cilium:
     # Cilium 1.12 dashboards — metric names are stable through 1.17.
@@ -127,6 +155,38 @@ dashboards:
       datasource:
         - name: DS_PROMETHEUS
           value: prometheus
+
+    # The rest of this folder reads OTLP data out of ClickHouse instead —
+    # otel_logs and otel_traces, unqualified, so they resolve through the
+    # datasource's defaultDatabase (otel). No substitution needed: each one
+    # declares a datasource variable that picks the default ClickHouse source.
+    logs-explorer:
+      url: https://raw.githubusercontent.com/grafana/clickhouse-datasource/v4.20.0/src/dashboards/otel-logs-explorer.json
+    traces-explorer:
+      url: https://raw.githubusercontent.com/grafana/clickhouse-datasource/v4.20.0/src/dashboards/otel-traces-explorer.json
+    service-overview:
+      url: https://raw.githubusercontent.com/grafana/clickhouse-datasource/v4.20.0/src/dashboards/otel-service-dashboard.json
+
+  # ClickHouse watching itself, over the `clickhouse` datasource. These read the
+  # system log tables — query_log, part_log, metric_log, asynchronous_metric_log,
+  # text_log — which the operator turns on for us, and system.parts /
+  # system.replicas / system.merges. The `grafana` user is granted SELECT on
+  # system.* in manifests/clickhouse-cluster.yaml for exactly this.
+  clickhouse:
+    query-analysis:
+      url: https://raw.githubusercontent.com/grafana/clickhouse-datasource/v4.20.0/src/dashboards/query-analysis.json
+    cluster-analysis:
+      url: https://raw.githubusercontent.com/grafana/clickhouse-datasource/v4.20.0/src/dashboards/cluster-analysis.json
+    data-analysis:
+      url: https://raw.githubusercontent.com/grafana/clickhouse-datasource/v4.20.0/src/dashboards/data-analysis.json
+    # The only one of the seven with an __inputs block; file-provisioned
+    # dashboards get no input prompt, so ${the_datasource} has to be
+    # substituted at download time or every panel renders empty.
+    system-metrics:
+      url: https://raw.githubusercontent.com/grafana/clickhouse-datasource/v4.20.0/src/dashboards/system-dashboards.json
+      datasource:
+        - name: the_datasource
+          value: clickhouse
 
   host:
     # Panels group by `instance`, which the scrape job relabels to the node name.

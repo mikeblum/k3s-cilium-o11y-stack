@@ -1,15 +1,17 @@
 HELM_REPOS := \
-	clickhouse=https://charts.pascaliske.dev \
 	grafana=https://grafana.github.io/helm-charts \
 	open-telemetry=https://open-telemetry.github.io/opentelemetry-helm-charts \
 	prometheus-community=https://prometheus-community.github.io/helm-charts
+
+# The ClickHouse operator is OCI-only — no `helm repo add`, the URL is the chart.
+CHOP_CHART := oci://ghcr.io/clickhouse/clickhouse-operator-helm
 
 NS         := o11y
 # The one namespace allowed host access. See namespace.yaml.
 NODEEXP_NS := node-exporter
 DOMAIN     ?= example.local
 
-.PHONY: repos install uninstall status routes secrets
+.PHONY: repos install uninstall status routes secrets clickhouse ch-client
 
 repos:
 	$(foreach repo,$(HELM_REPOS), \
@@ -17,28 +19,37 @@ repos:
 	helm repo update
 
 # Fails early with a readable message rather than letting Helm install a
-# collector that CrashLoopBackOffs on a missing Secret.
+# collector that CrashLoopBackOffs on a missing Secret. A key that is absent
+# rather than wrong is worse: the ClickHouse pod sits in
+# CreateContainerConfigError with nothing in its logs, so check for each one.
+CH_SECRET_KEYS := DEFAULT_PASSWORD OTEL_WRITER_PASSWORD GRAFANA_PASSWORD
+
 secrets:
 	@test -f secrets.yaml || { \
 		echo "ERROR: secrets.yaml not found."; \
 		echo "       cp secrets.example.yaml secrets.yaml and fill in the passwords."; \
 		exit 1; }
+	@for key in $(CH_SECRET_KEYS); do \
+		grep -q "^ *$$key:" secrets.yaml || { \
+			echo "ERROR: secrets.yaml is missing $$key."; \
+			echo "       See secrets.example.yaml — all three keys are required."; \
+			exit 1; }; \
+	done
 
 # Chart versions are pinned so `make install` is reproducible. Leaving one
 # unpinned means Helm silently takes whatever is newest in the repo cache —
 # prometheus drifted 29.23.0 -> 29.24.0 mid-deploy that way. Bump deliberately,
 # and re-check values/prometheus.yaml's scrapeConfigs override when you do.
-CH_VERSION      := 1.0.0
+CHOP_VERSION    := 0.0.7
 PROM_VERSION    := 29.24.0
 OTELCOL_VERSION := 0.166.0
 GRAFANA_VERSION := 10.5.15
 NODEEXP_VERSION := 4.56.1
 
-install: repos secrets
-	kubectl apply -f namespace.yaml
-	kubectl apply -f secrets.yaml
-	kubectl apply -f manifests/clickhouse-users-override.yaml
-	helm upgrade --install clickhouse    clickhouse/clickhouse                        -n $(NS) -f values/clickhouse.yaml       --version $(CH_VERSION)
+# ClickHouse is not a Helm release — the operator's chart installs a controller
+# and two CRDs, and the database itself is a pair of CRs. So `clickhouse` runs
+# on its own before everything downstream of it.
+install: repos secrets clickhouse
 	helm upgrade --install prometheus    prometheus-community/prometheus              -n $(NS) -f values/prometheus.yaml       --version $(PROM_VERSION)
 	helm upgrade --install node-exporter prometheus-community/prometheus-node-exporter -n $(NODEEXP_NS) -f values/node-exporter.yaml --version $(NODEEXP_VERSION)
 	helm upgrade --install otelcol       open-telemetry/opentelemetry-collector       -n $(NS) -f values/otel-collector.yaml   --version $(OTELCOL_VERSION)
@@ -47,15 +58,36 @@ install: repos secrets
 	kubectl apply -f manifests/reference-grants.yaml
 	DOMAIN=$(DOMAIN) envsubst '$${DOMAIN}' < manifests/gateway-routes.yaml | kubectl apply -f -
 
+# Operator, then cluster. The CR is rejected outright if its CRD is not yet
+# Established, and the operator has to be up to act on it, so both waits are
+# load-bearing rather than cosmetic.
+clickhouse: secrets
+	kubectl apply -f namespace.yaml
+	kubectl apply -f secrets.yaml
+	helm upgrade --install clickhouse-operator $(CHOP_CHART) -n $(NS) -f values/clickhouse-operator.yaml --version $(CHOP_VERSION)
+	kubectl wait --for=condition=Established --timeout=120s \
+		crd/clickhouseclusters.clickhouse.com crd/keeperclusters.clickhouse.com
+	kubectl rollout status -n $(NS) deploy/clickhouse-operator-controller-manager --timeout=180s
+	kubectl apply -f manifests/clickhouse-cluster.yaml
+	kubectl apply -f manifests/clickhouse-service.yaml
+	kubectl wait --for=condition=Ready --timeout=600s -n $(NS) \
+		keepercluster/clickhouse clickhousecluster/clickhouse
+
+# CRDs are installed with keep: true, so `helm uninstall` leaves them behind on
+# purpose — deleting them would cascade into the cluster and its PVC. The
+# explicit delete below is the only thing that drops ClickHouse's data.
 uninstall:
-	helm uninstall grafana prometheus otelcol clickhouse -n $(NS) || true
+	helm uninstall grafana prometheus otelcol -n $(NS) || true
 	helm uninstall node-exporter -n $(NODEEXP_NS) || true
 	kubectl delete -f manifests/ --ignore-not-found
+	helm uninstall clickhouse-operator -n $(NS) || true
+	kubectl delete crd clickhouseclusters.clickhouse.com keeperclusters.clickhouse.com --ignore-not-found
 	kubectl delete namespace $(NS) $(NODEEXP_NS) --ignore-not-found
 
 status:
 	kubectl get pods -n $(NS)
 	kubectl get pods -n $(NODEEXP_NS)
+	kubectl get keepercluster,clickhousecluster -n $(NS)
 
 routes:
 	kubectl get httproute -n $(NS)
@@ -63,9 +95,15 @@ routes:
 	kubectl describe httproute grafana    -n $(NS)
 	kubectl describe httproute hubble-ui  -n kube-system
 
-# Port-forwards for debugging — not needed in normal operation
+# A clickhouse-client shell on the server pod. The operator writes the `default`
+# user's password into the pod's /etc/clickhouse-client config, so no flags.
+ch-client:
+	kubectl exec -it -n $(NS) clickhouse-clickhouse-0-0-0 -- clickhouse-client
+
+# Port-forwards for debugging — not needed in normal operation.
+# Service and pod names come from the CR names in manifests/clickhouse-cluster.yaml.
 pf-clickhouse:
-	kubectl port-forward -n $(NS) svc/clickhouse 8123:8123
+	kubectl port-forward -n $(NS) svc/clickhouse-server 8123:8123
 
 pf-grafana:
 	kubectl port-forward -n $(NS) svc/grafana 3000:3000

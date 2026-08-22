@@ -1,0 +1,39 @@
+# Exposes the ClickHouse HTTP interface (8123) to your tailnet at
+# https://clickhouse.<tailnet>.ts.net — for clickhouse-client --host, curl, and
+# anything else speaking HTTP rather than the native 9000 protocol.
+#
+# The operator provisions a Tailscale proxy node and a Let's Encrypt certificate
+# automatically. First connection may take 30-60s while the cert is issued.
+#
+# tls.hosts[0] first label sets the MagicDNS hostname:
+#   "clickhouse" → clickhouse.<tailnet-name>.ts.net
+#
+# Backend must be a Service with a real ClusterIP: the Tailscale operator
+# proxies to that address, and rejects a headless Service with "Ingress contains
+# no valid backends" while quietly continuing to serve its previous config.
+# k8s/o11y/manifests/clickhouse-service.yaml exists for this.
+#
+# Tailscale is the network boundary, but ClickHouse still demands credentials —
+# see the clickhouse-auth Secret.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: clickhouse-ts
+  namespace: o11y
+  annotations:
+    tailscale.com/tags: "tag:k8s-ingress"
+spec:
+  ingressClassName: tailscale
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: clickhouse-server
+                port:
+                  number: 8123
+  tls:
+    - hosts:
+        - clickhouse
