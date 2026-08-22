@@ -252,6 +252,43 @@ May take 30–60 s on first run while Let's Encrypt certs are issued.
 
 ---
 
+### 10 — OTel demo app (optional)
+
+```bash
+make otel-demo-install
+```
+
+Deploys the OpenTelemetry demo (~20 microservices + load generator) into its own
+`otel-demo` namespace. Its collector and bundled backends are disabled; services
+send OTLP straight to `otelcol.o11y`. This is what puts real traces in
+ClickHouse — without it `otel_traces` stays empty.
+
+Requires step 7 first: the demo has no collector of its own, so `otelcol.o11y`
+must already be up or every service logs export failures.
+
+**Success:**
+```bash
+make otel-demo-status          # 25 pods Running
+kubectl exec -n o11y clickhouse-0 -- clickhouse-client --query \
+  "SELECT count() FROM otel.otel_traces"
+# Expected: non-zero and climbing within ~2 min of the pods going Ready
+```
+
+Also confirm the span-derived metrics reached Prometheus, which is what the
+provisioned "OTel Demo → Spanmetrics" dashboard reads:
+```bash
+kubectl port-forward -n o11y svc/prometheus-server 9090:80 &
+curl -sG http://localhost:9090/api/v1/query \
+  --data-urlencode 'query=sum by (service_name) (traces_span_metrics_calls_total)'
+# Expected: one series per demo service
+```
+
+Allow a few minutes on first run — 25 images to pull.
+
+**Idempotent:** yes — `helm upgrade --install` + `kubectl apply`.
+
+---
+
 ## Idempotency summary
 
 | Target | Safe to re-run? | Notes |
@@ -263,6 +300,7 @@ May take 30–60 s on first run while Let's Encrypt certs are issued.
 | `tls-install` | ✓ | kubectl apply --dry-run |
 | `gateway-apply` | ✓ | kubectl apply |
 | `o11y-install` | ✓ | helm upgrade + kubectl apply |
+| `otel-demo-install` | ✓ | helm upgrade |
 | `tailscale-install` | ✓ | helm upgrade + kubectl apply |
 
 ---

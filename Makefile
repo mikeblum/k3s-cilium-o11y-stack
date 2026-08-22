@@ -23,6 +23,7 @@ export KUBECONFIG
         tls-install tls-check-expiry \
         gateway-install gateway-apply \
         o11y-install o11y-uninstall o11y-status o11y-routes o11y-clickhouse \
+        otel-demo-install otel-demo-uninstall otel-demo-status \
         tailscale-install tailscale-status
 
 # ─── Help ────────────────────────────────────────────────────────────────────
@@ -59,6 +60,9 @@ help:
 	@echo "  make o11y-install         Install full o11y stack (Helm + manifests)"
 	@echo "  make o11y-clickhouse      Re-apply just the ClickHouse operator + cluster"
 	@echo "  make tailscale-install    Install Tailscale operator + ingress resources"
+	@echo ""
+	@echo "Optional workloads:"
+	@echo "  make otel-demo-install    Install the OpenTelemetry demo app (exports to o11y)"
 	@echo ""
 
 # ─── ip ─────────────────────────────────────────────────────────────────────
@@ -135,6 +139,17 @@ o11y-clickhouse:
 
 o11y-routes:
 	@$(MAKE) -C k8s/o11y routes
+
+# ─── OTel demo app ───────────────────────────────────────────────────────────
+
+otel-demo-install:
+	@$(MAKE) -C k8s/otel-demo install
+
+otel-demo-uninstall:
+	@$(MAKE) -C k8s/otel-demo uninstall
+
+otel-demo-status:
+	@$(MAKE) -C k8s/otel-demo status
 
 # ─── Tailscale ───────────────────────────────────────────────────────────────
 

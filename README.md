@@ -75,7 +75,7 @@ you query the wrong one:
 
 - **Prometheus** (`prometheus` datasource, PromQL) — Cilium, Hubble,
   cilium-operator, collector self-metrics, node-exporter, apiserver, nodes,
-  cadvisor, kube-state-metrics.
+  cadvisor, kube-state-metrics, plus the span-derived RED metrics below.
 - **ClickHouse** (`clickhouse` datasource, SQL) — everything arriving over OTLP:
   app logs, traces, and metrics, plus ClickHouse's own `system` log tables.
 
@@ -85,6 +85,18 @@ explorers over ClickHouse), and **ClickHouse** — query, cluster, data, and
 system-metrics dashboards from the [ClickHouse datasource
 plugin](https://github.com/grafana/clickhouse-datasource/tree/main/src/dashboards)
 for watching the database itself.
+
+**RED metrics come free with traces.** A `spanmetrics` connector on the traces
+pipeline derives rate/error/duration series from every span and remote-writes
+them to Prometheus as `traces_span_metrics_calls_total` and
+`traces_span_metrics_duration_milliseconds_*`, labelled by `service_name`,
+`span_name` and `status_code`. Send traces and you get them — no extra
+instrumentation. They are PromQL-shaped, which is why they land in Prometheus
+rather than ClickHouse.
+
+> Cardinality is one series per service × span name × status code. Name spans
+> after routes (`/api/products/{id}`), never raw URLs with IDs in them — each
+> distinct span name permanently multiplies series here.
 
 **Scraping lives in the collector, not Prometheus.** Prometheus's
 annotation-driven discovery is off, so `prometheus.io/scrape` on a pod does
@@ -123,6 +135,70 @@ make -C k8s/o11y install
 ```
 
 **3.** Add an HTTPRoute (LAN) and Tailscale Ingress — see `k8s/tailscale/manifests/ingress-grafana.yaml` and `k8s/o11y/manifests/gateway-routes.yaml` for examples.
+
+## OpenTelemetry demo app
+
+*Optional.* The [OTel demo](https://opentelemetry.io/docs/demo/) — ~20 instrumented
+microservices and a load generator — deployed into its own `otel-demo` namespace.
+It is the workload that actually exercises in-cluster OTLP ingest, so it is also
+the fastest way to get real traces into ClickHouse.
+
+```bash
+make otel-demo-install
+make -C k8s/otel-demo pf-frontend   # then http://localhost:8080/
+```
+
+Its own collector and its bundled Jaeger, Prometheus, Grafana and OpenSearch are
+all disabled — this stack already provides them, and the services talk straight
+to the o11y collector:
+
+```
+demo services ──OTLP──▶ otelcol.o11y ──▶ ClickHouse
+  (otel-demo ns)         (o11y ns)   └──▶ spanmetrics ──▶ Prometheus
+```
+
+Every component builds its endpoint from `OTEL_COLLECTOR_NAME`, so one
+`default.envOverrides` entry repoints all of them. Talking directly also keeps
+enrichment correct: `k8s_attributes` resolves `from: connection` to the calling
+pod, which is the service itself rather than a forwarder.
+
+### Dashboards
+
+The demo's **Spanmetrics** dashboard is provisioned into an **OTel Demo** folder
+in Grafana, reading `traces_span_metrics_*` from Prometheus. Those metrics come
+from the `spanmetrics` connector in the o11y collector (see *Metrics live in two
+stores*), which replaces what the demo's own collector used to derive — so the
+dashboard works for any app sending traces, not just this one.
+
+The demo ships seven other dashboards that are **not** imported, because nothing
+here produces what they query: `apm` and `demo` need Jaeger and OpenSearch;
+`linux`, `NGINX` and `postgresql` need scrape jobs that lived in the demo's
+collector; `exemplars` needs the demo's app metrics in Prometheus rather than
+ClickHouse; and `opentelemetry-collector` duplicates the OTel folder's gnetId
+15983. They are in the chart at `grafana/provisioning/dashboards/` if you want
+to adapt one.
+
+For traces and logs, query ClickHouse — either the ClickHouse datasource in
+Grafana, or directly:
+
+```bash
+kubectl exec -n o11y clickhouse-0 -- clickhouse-client --query \
+  "SELECT ServiceName, count() FROM otel.otel_traces GROUP BY ServiceName ORDER BY 2 DESC"
+```
+
+**Note:** the demo UI's own `/jaeger/ui/` and `/grafana/` links still 502 — its
+Envoy proxies them to in-namespace backends that no longer exist, and it passes
+the `/grafana` prefix through unrewritten, which this Grafana does not serve
+from. Use `grafana.<domain>` directly.
+
+**Caveat on span-derived latency:** the demo's collector also sanitised span
+names before deriving metrics; without it, `checkout` p95 reads as exactly
+15000ms because that is the connector's highest finite bucket. Its real p95 is
+~23s — `SELECT quantile(0.95)(Duration) FROM otel.otel_traces` has the exact
+figure.
+
+Uninstall with `make otel-demo-uninstall` — it drops the namespace, all 25
+workloads, and the Grafana dashboard ConfigMap.
 
 ---
 

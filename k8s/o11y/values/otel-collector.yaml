@@ -164,6 +164,9 @@ config:
       # (ts-<ingress>-<hash>-N) drops it from the pod cache so the lookup misses.
       # Same reason jaeger-agent is excluded by default — this replaces that
       # default, which is fine; no Jaeger here.
+      #
+      # Anything else that forwards OTLP on behalf of other pods needs adding
+      # here too, or every payload it relays is attributed to the forwarder.
       exclude:
         pods:
           - name: '^ts-.*'
@@ -178,6 +181,25 @@ config:
           - tag_name: service.name
             key: app
             from: pod
+
+  # RED metrics (rate, errors, duration) derived from spans. Any app sending
+  # traces gets them for free — no extra instrumentation.
+  #
+  # This is a PromQL-shaped signal (rate/histogram_quantile over counters and
+  # buckets), so it goes to Prometheus, not ClickHouse, and the split in the
+  # README holds. Emits traces_span_metrics_calls_total and
+  # traces_span_metrics_duration_milliseconds_* — the names the OTel Demo's
+  # Spanmetrics dashboard queries.
+  #
+  # Cardinality: one series per service × span name × status code. Instrument
+  # span names as low-cardinality routes (/api/products/{id}, not the raw URL);
+  # anything that embeds an ID in the span name multiplies series here.
+  # Left on the connector's default buckets, which run out to 15s. A custom set
+  # topping out at 5s clamped checkout's p95 to exactly 5000ms — its order
+  # pipeline genuinely runs longer, and histogram_quantile cannot see past the
+  # highest finite bucket.
+  connectors:
+    spanmetrics: {}
 
   exporters:
     clickhouse:
@@ -220,7 +242,7 @@ config:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, k8s_attributes, batch]
-        exporters: [clickhouse]
+        exporters: [clickhouse, spanmetrics]
       logs:
         receivers: [otlp]
         processors: [memory_limiter, k8s_attributes, batch]
@@ -237,5 +259,12 @@ config:
       # backs the OTel Collector dashboard (gnetId 15983) in Grafana.
       metrics/prometheus:
         receivers: [prometheus, prometheus/scrape]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus_remote_write]
+
+      # Span-derived RED metrics. Separate from metrics/prometheus so the
+      # spanmetrics connector is not also fed the scrape jobs above.
+      metrics/spanmetrics:
+        receivers: [spanmetrics]
         processors: [memory_limiter, batch]
         exporters: [prometheus_remote_write]
