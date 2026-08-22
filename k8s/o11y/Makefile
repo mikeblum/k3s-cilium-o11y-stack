@@ -11,7 +11,7 @@ NS         := o11y
 NODEEXP_NS := node-exporter
 DOMAIN     ?= example.local
 
-.PHONY: repos install uninstall status routes secrets clickhouse ch-client
+.PHONY: repos install uninstall status routes secrets clickhouse ch-client grafana-admin
 
 repos:
 	$(foreach repo,$(HELM_REPOS), \
@@ -22,7 +22,12 @@ repos:
 # collector that CrashLoopBackOffs on a missing Secret. A key that is absent
 # rather than wrong is worse: the ClickHouse pod sits in
 # CreateContainerConfigError with nothing in its logs, so check for each one.
-CH_SECRET_KEYS := DEFAULT_PASSWORD OTEL_WRITER_PASSWORD GRAFANA_PASSWORD
+# ADMIN_USER/ADMIN_PASSWORD back Grafana's login via admin.existingSecret. A
+# missing one there is quieter than the ClickHouse case: Grafana starts fine and
+# simply refuses the password, which reads as "wrong credentials" rather than a
+# misconfiguration.
+CH_SECRET_KEYS := DEFAULT_PASSWORD OTEL_WRITER_PASSWORD GRAFANA_PASSWORD \
+                  ADMIN_USER ADMIN_PASSWORD
 
 secrets:
 	@test -f secrets.yaml || { \
@@ -32,7 +37,7 @@ secrets:
 	@for key in $(CH_SECRET_KEYS); do \
 		grep -q "^ *$$key:" secrets.yaml || { \
 			echo "ERROR: secrets.yaml is missing $$key."; \
-			echo "       See secrets.example.yaml — all three keys are required."; \
+			echo "       See secrets.example.yaml — every key there is required."; \
 			exit 1; }; \
 	done
 
@@ -94,6 +99,15 @@ routes:
 	kubectl get httproute -n kube-system
 	kubectl describe httproute grafana    -n $(NS)
 	kubectl describe httproute hubble-ui  -n kube-system
+
+# Reconcile Grafana's admin password with the grafana-auth Secret. Needed
+# because Grafana seeds GF_SECURITY_ADMIN_PASSWORD only when it creates a new
+# database — on an existing PVC the env var is ignored, so a rotated Secret
+# applies cleanly and then fails to log in. Reads the password from the
+# container's own env so nothing is passed on the command line.
+grafana-admin:
+	kubectl exec -n $(NS) deploy/grafana -c grafana -- \
+		sh -c 'grafana cli --homepath /usr/share/grafana admin reset-admin-password "$$GF_SECURITY_ADMIN_PASSWORD"'
 
 # A clickhouse-client shell on the server pod. The operator writes the `default`
 # user's password into the pod's /etc/clickhouse-client config, so no flags.
