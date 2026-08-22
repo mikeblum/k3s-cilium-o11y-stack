@@ -13,6 +13,9 @@ _DOMAIN_CMD = h=$$(hostname); d=$$(echo "$$h" | cut -d. -f2-); [ "$$d" != "$$h" 
 DOMAIN      ?= $(shell $(_DOMAIN_CMD))
 TLS_SECRET  := $(subst .,-,$(DOMAIN))-tls
 ENVOY_GATEWAY_VERSION  ?= v1.8.0
+# Kept in sync with the default in infra/cilium/install.sh. Defined here so
+# `make cilium-upgrade` passes a real version rather than an empty variable.
+CILIUM_VERSION         ?= 1.17.3
 
 export KUBECONFIG
 
@@ -47,6 +50,7 @@ help:
 	@echo "  NODE_IP               = $(NODE_IP)"
 	@echo "  NODE_CIDR             = $(NODE_CIDR)   (LB IP pool — free range on your LAN)"
 	@echo "  ENVOY_GATEWAY_VERSION = $(ENVOY_GATEWAY_VERSION)"
+	@echo "  CILIUM_VERSION        = $(CILIUM_VERSION)"
 	@echo "  Example:   make tls-install DOMAIN=home.example.com"
 	@echo "  Example:   make cilium-lb   NODE_CIDR=192.168.1.192/26"
 	@echo ""
@@ -63,6 +67,14 @@ help:
 	@echo ""
 	@echo "Optional workloads:"
 	@echo "  make otel-demo-install    Install the OpenTelemetry demo app (exports to o11y)"
+	@echo ""
+	@echo "Restoring a service (install targets are idempotent — re-run to reconcile):"
+	@echo "  make cilium-upgrade       Recreate Cilium/Hubble objects (relay, UI)"
+	@echo "  make o11y-install         Reconcile the o11y stack"
+	@echo "  make o11y-clickhouse      Re-apply just ClickHouse (operator + CRs)"
+	@echo "  make tailscale-install    Recreate the operator + Ingress resources"
+	@echo "  make otel-demo-install    Recreate the demo namespace + workloads"
+	@echo "  See 'Restoring a single service' in the README for one-component restores."
 	@echo ""
 
 # ─── ip ─────────────────────────────────────────────────────────────────────

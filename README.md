@@ -182,7 +182,7 @@ For traces and logs, query ClickHouse — either the ClickHouse datasource in
 Grafana, or directly:
 
 ```bash
-kubectl exec -n o11y clickhouse-0 -- clickhouse-client --query \
+kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- clickhouse-client --query \
   "SELECT ServiceName, count() FROM otel.otel_traces GROUP BY ServiceName ORDER BY 2 DESC"
 ```
 
@@ -202,6 +202,113 @@ workloads, and the Grafana dashboard ConfigMap.
 
 ---
 
+## Restoring a single service
+
+**Yes — every component is reconciled by re-running its own install target.**
+Each one wraps `helm upgrade --install`, which is idempotent: unchanged objects
+are left alone, and anything deleted out-of-band is recreated. There is no
+separate "repair" command, and you do not need to uninstall first.
+
+| Component | Command | Namespace |
+|-----------|---------|-----------|
+| Cilium + Hubble (relay, UI) | `make cilium-upgrade` | `kube-system` |
+| Cilium LB pool + L2 policy | `make cilium-lb` | `kube-system` |
+| Envoy Gateway controller | `make gateway-install` | `envoy-gateway-system` |
+| Gateway + GatewayClass | `make gateway-apply` | `envoy-gateway-system` |
+| mkcert wildcard cert | `make tls-install` | `envoy-gateway-system` |
+| Grafana, Prometheus, collector, node-exporter | `make o11y-install` | `o11y` |
+| ClickHouse (operator + CRs) | `make o11y-clickhouse` | `o11y` |
+| Tailscale operator + Ingresses | `make tailscale-install` | `tailscale` |
+| OTel demo app | `make otel-demo-install` | `otel-demo` |
+
+To restore a single o11y component without re-running the rest, use that
+chart's line from `k8s/o11y/Makefile` on its own:
+
+```bash
+helm upgrade --install grafana grafana/grafana -n o11y \
+  -f k8s/o11y/values/grafana.yaml --version 10.5.15
+```
+
+Check what a target would change before running it. For Helm:
+
+```bash
+helm upgrade --install <release> <chart> -n <ns> -f <values> --dry-run=server
+```
+
+For the plain-manifest steps, `kubectl diff` prints nothing when a re-run would
+be a no-op:
+
+```bash
+kubectl diff -f k8s/o11y/manifests/clickhouse-cluster.yaml
+```
+
+### Restoring one workload without touching the release
+
+Re-running a whole chart re-applies every object in it. When a single
+Deployment has been deleted and you want to recreate *only* that one, take it
+from the release Helm already has stored:
+
+```bash
+helm get manifest cilium -n kube-system > /tmp/cilium.yaml
+# extract the Deployment you need, then:
+kubectl apply -f /tmp/hubble-deployments.yaml
+```
+
+Helm stamps ownership metadata at apply time, so it is **not** in
+`helm get manifest` output. Add it back or the next `helm upgrade` fails with
+*"invalid ownership metadata"*:
+
+```yaml
+metadata:
+  annotations:
+    meta.helm.sh/release-name: cilium
+    meta.helm.sh/release-namespace: kube-system
+  labels:
+    app.kubernetes.io/managed-by: Helm
+```
+
+### Is a Cilium upgrade safe to re-run?
+
+Yes. Hubble's TLS material is generated with `hubble.tls.auto.method: helm`,
+which sounds like it would rotate on every upgrade — it does not. The chart
+reuses the existing `cilium-ca` Secret via a `lookup`, so a re-run renders a
+byte-identical CA, leaves the DaemonSet spec unchanged, and does not restart
+the Cilium agent or drop pod networking. Confirm before running:
+
+```bash
+kubectl get secret -n kube-system hubble-server-certs \
+  -o jsonpath='{.data.ca\.crt}' | base64 -d | openssl x509 -noout -fingerprint -sha256
+```
+
+Re-run with `--dry-run=server` (needed — `lookup` returns empty on a client-side
+dry run) and compare the rendered CA to that fingerprint.
+
+### Restoring ClickHouse
+
+ClickHouse is **not** a Helm release, so it does not follow the pattern above.
+The operator's chart installs a controller and two CRDs; the database itself is
+a `KeeperCluster` + `ClickHouseCluster` pair of CRs. `make o11y-clickhouse` does
+both in order, and the two `kubectl wait`s in it are load-bearing — a CR is
+rejected outright if its CRD is not yet `Established`, and the operator has to
+be up to act on it.
+
+Re-running it is safe: the CRs are applied declaratively, so an unchanged spec
+is a no-op and the operator does not restart the server. Confirm with
+`kubectl diff` before running if you want certainty.
+
+Names to expect, since the operator derives them from the CR name rather than
+the chart: pod `clickhouse-clickhouse-0-0-0`, stable ClusterIP
+`clickhouse-server` (the headless Service exists too, but the Tailscale operator
+rejects a headless backend). `make -C k8s/o11y ch-client` opens a
+`clickhouse-client` shell without needing credentials — the operator writes the
+`default` password into the pod's client config.
+
+> `make -C k8s/o11y uninstall` is the one thing that destroys data: the CRDs are
+> installed with `keep: true` so `helm uninstall` deliberately leaves them, and
+> the explicit `kubectl delete crd` cascades into the cluster and its PVC.
+
+---
+
 ## Troubleshooting
 
 **TLS warning in browser** — mkcert CA not trusted on this device. See `k8s/tls/README.md`.
@@ -211,6 +318,25 @@ workloads, and the Grafana dashboard ConfigMap.
 kubectl describe httproute grafana -n o11y | grep -A5 Status
 kubectl get secret example-local-tls -n envoy-gateway-system   # dots-to-dashes of your DOMAIN
 ```
+
+**Hubble UI down / `hubble.<tailnet>.ts.net` not loading** — check whether the
+workloads exist at all before debugging ingress. Cilium's agent can be perfectly
+healthy while `hubble-relay` and `hubble-ui` are missing; the Services and the
+Tailscale Ingress survive on their own and keep resolving, so the symptom looks
+like a proxy fault:
+```bash
+kubectl get deploy -n kube-system hubble-relay hubble-ui
+kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg status | grep Hubble
+```
+`Hubble: Ok` with a missing Deployment means only the UI tier is gone — restore
+it per *Restoring a single service*. Verify the whole path end to end:
+```bash
+kubectl -n kube-system exec ds/cilium -c cilium-agent -- \
+  hubble observe --server "$(kubectl get svc -n kube-system hubble-relay \
+  -o jsonpath='{.spec.clusterIP}'):80" --last 5
+```
+Use the relay's ClusterIP, not its DNS name — the agent runs in the host network
+namespace and cannot resolve cluster DNS.
 
 **ClickHouse not receiving data:**
 ```bash
