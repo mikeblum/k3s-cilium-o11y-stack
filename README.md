@@ -319,6 +319,21 @@ kubectl describe httproute grafana -n o11y | grep -A5 Status
 kubectl get secret example-local-tls -n envoy-gateway-system   # dots-to-dashes of your DOMAIN
 ```
 
+**Can't log in to Grafana** — the admin credential comes from the `grafana-auth`
+Secret in `secrets.yaml`, but Grafana only seeds it when it creates a *new*
+database. On an existing PVC the env var is ignored, so a rotated password
+applies cleanly and is then rejected at the login form. Reconcile the database
+with the Secret:
+```bash
+make -C k8s/o11y grafana-admin
+```
+If the form itself is missing rather than rejecting you, `disable_login_form` is
+on — it hides the form at `/login` too, not just the home page, leaving the HTTP
+API as the only way to authenticate:
+```bash
+curl -s https://grafana.<tailnet>.ts.net/login | grep -o '"disableLoginForm":[a-z]*'
+```
+
 **Hubble UI down / `hubble.<tailnet>.ts.net` not loading** — check whether the
 workloads exist at all before debugging ingress. Cilium's agent can be perfectly
 healthy while `hubble-relay` and `hubble-ui` are missing; the Services and the
