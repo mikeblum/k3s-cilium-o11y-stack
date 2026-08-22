@@ -1,7 +1,7 @@
 ---
 # A stable ClusterIP in front of the operator-managed ClickHouse pods.
 #
-# Two reasons this exists rather than everything using the operator's own
+# Why this exists instead of everything using the operator's own
 # `clickhouse-clickhouse-headless`:
 #
 #   1. The Tailscale operator proxies an Ingress to its backend Service's

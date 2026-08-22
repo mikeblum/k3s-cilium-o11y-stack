@@ -1,24 +1,31 @@
-# AGENT.md — Deploying the homelab o11y stack
+# AGENT.md — deploying the stack
 
-This file guides a Claude Code agent (or any AI agent) through deploying this
-stack autonomously on a fresh Linux host. Read it top to bottom; do not skip steps.
+This file guides a coding agent through deploying the stack on a fresh Linux
+host. Read it top to bottom; do not skip steps.
+
+Humans setting this up by hand want [SETUP.md](SETUP.md), which covers the same
+ground with more context. When something breaks, both audiences want
+[docs/runbook.md](docs/runbook.md).
 
 ---
 
 ## What this stack is
 
-Single-node k3s cluster running:
-- **Cilium** CNI (kube-proxy replacement, Hubble UI, L2 LoadBalancer)
-- **Envoy Gateway** (HTTPS ingress via mkcert wildcard cert)
-- **Grafana 13** + **Prometheus** + **OTel Collector** (DaemonSet) + **ClickHouse** (official operator) + **node-exporter**
+A single-node k3s cluster running:
 
-**Linux only.** Tested on Pop!_OS 24.04 / Ubuntu 24.04 (kernel 6.x). Not tested on macOS or Windows.
+- **Cilium** CNI (kube-proxy replacement, Hubble UI, L2 LoadBalancer)
+- **Envoy Gateway** for HTTPS ingress, with an mkcert wildcard cert
+- **Grafana 13**, **Prometheus**, **OTel Collector** (DaemonSet), **ClickHouse**
+  (official operator), and **node-exporter**
+
+Linux only. Tested on Pop!_OS 24.04 and Ubuntu 24.04, kernel 6.x. Untested on
+macOS and Windows.
 
 ---
 
 ## Variables
 
-All are auto-detected; override any on the command line.
+All are auto-detected. Override any on the command line.
 
 | Variable | Default (auto-detected) | Override example |
 |----------|------------------------|-----------------|
@@ -28,13 +35,13 @@ All are auto-detected; override any on the command line.
 | `CILIUM_VERSION` | `1.17.3` | `make cilium-install CILIUM_VERSION=1.17.4` |
 | `ENVOY_GATEWAY_VERSION` | `v1.8.0` | `make gateway-install ENVOY_GATEWAY_VERSION=v1.9.0` |
 
-Run `make help` to see current resolved values before executing any target.
+Run `make help` to see the resolved values before executing any target.
 
 ---
 
 ## Prerequisites
 
-Install before running any `make` targets.
+Install these before running any `make` target.
 
 ```bash
 # helm — required by cilium-install, gateway-install, o11y-install
@@ -42,289 +49,241 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 # mkcert — required by tls-install
 sudo apt install mkcert          # Ubuntu/Debian/Pop!_OS
-# or: brew install mkcert        # macOS (not officially supported)
+# or: brew install mkcert        # macOS, unsupported
 
 # envsubst — required by cilium-lb, gateway-apply, o11y-install
 sudo apt install gettext
 ```
 
-Check all at once:
-```bash
-make setup
-```
-
-`kubectl` is installed by k3s — it is available after `make k3s-install`.
+Check all at once with `make setup`. `kubectl` is installed by k3s and becomes
+available after step 1.
 
 ---
 
-## Bootstrap order (run in order, once, on the host)
+## Bootstrap
 
-Every step prints the next command to run. If a step fails, see the
-Failure Modes section below before retrying.
+Run these once, in order, on the host. Every step prints the next command. If a
+step fails, read [docs/runbook.md](docs/runbook.md) before retrying.
 
-### 1 — k3s
+### 1. k3s
 
 ```bash
 sudo make k3s-install
 ```
 
-**Success:** node appears in `kubectl get nodes` with status `Ready` (may take ~30s).
-Note: the node will be `NotReady` until Cilium (step 2) is installed.
+The node appears in `kubectl get nodes` within about 30s. It stays `NotReady`
+until Cilium lands in step 2, which is expected.
 
-**Idempotent:** yes — re-running upgrades k3s in place.
-
----
-
-### 2 — Cilium
+### 2. Cilium
 
 ```bash
 sudo make cilium-install
 ```
 
-**Success:**
-```
-daemon set "cilium" successfully rolled out
-```
-Then verify:
+Wait for `daemon set "cilium" successfully rolled out`, then confirm the agent
+is serving metrics:
+
 ```bash
 kubectl exec -n kube-system ds/cilium -- curl -s http://localhost:9962/metrics | head -5
 ```
-Should return Prometheus metric lines.
 
-**Idempotent:** yes — `helm upgrade --install`.
+Prometheus metric lines mean the agent is healthy.
 
----
+### 3. Cilium LB pool
 
-### 3 — Cilium LB pool
+Pick a free /26 in your LAN that does not overlap DHCP ranges or static hosts.
+`arp-scan` or a ping sweep will tell you what is in use.
 
 ```bash
 make ip   # print your primary NIC IP, e.g. 192.168.1.10
-# Pick a free /26 range in your LAN — check with: arp-scan or ping sweep
 sudo make cilium-lb NODE_CIDR=192.168.1.192/26
 ```
 
-**Success:** `ciliumloadbalancerippool.cilium.io/lan-pool created`
+Look for `ciliumloadbalancerippool.cilium.io/lan-pool created`. The first
+address in `NODE_CIDR` goes to the Envoy Gateway LoadBalancer Service.
 
-The first IP in NODE_CIDR will be assigned to the Envoy Gateway LoadBalancer service.
-Make sure NODE_CIDR does not overlap with DHCP ranges or other static hosts.
-
-**Idempotent:** yes — `kubectl apply`.
-
----
-
-### 4 — Envoy Gateway controller
+### 4. Envoy Gateway controller
 
 ```bash
 sudo make gateway-install
 ```
 
-**Success:**
-```
-deployment "envoy-gateway" successfully rolled out
-```
+Wait for `deployment "envoy-gateway" successfully rolled out`. This creates the
+`envoy-gateway-system` namespace, which step 5 needs.
 
-This creates the `envoy-gateway-system` namespace. Required before tls-install.
+### 5. TLS (mkcert wildcard cert)
 
-**Idempotent:** yes — `helm upgrade --install`.
-
----
-
-### 5 — TLS (mkcert wildcard cert)
+`DOMAIN` is auto-detected from the system hostname; override it if that guess is
+wrong.
 
 ```bash
-make tls-install
+make tls-install                    # or: make tls-install DOMAIN=mylab.local
 ```
 
-DOMAIN is auto-detected from the system hostname. To override:
+`[mkcert] Secret applied.` means it worked. Verify the Secret exists, naming it
+with dots converted to dashes:
+
 ```bash
-make tls-install DOMAIN=mylab.local
+kubectl get secret mylab-local-tls -n envoy-gateway-system
 ```
 
-**Success:**
-```
-[mkcert] Secret applied.
-```
-Verify:
-```bash
-kubectl get secret $(make -s -C k8s/tls check-expiry 2>/dev/null; \
-  hostname | sed 's/[^.]*\.//; s/\./-/g')-tls -n envoy-gateway-system
-# e.g.: kubectl get secret mylab-local-tls -n envoy-gateway-system
-```
+The CA lands at `~/.local/share/mkcert/rootCA.pem`. Distribute it to any device
+that needs to trust HTTPS on your domain; see
+[`k8s/tls/README.md`](k8s/tls/README.md).
 
-The CA cert is at `~/.local/share/mkcert/rootCA.pem`. Distribute this to any
-device that needs to trust HTTPS on your domain. See `k8s/tls/README.md`.
-
-**Idempotent:** yes — `kubectl apply --dry-run=client`.
-
----
-
-### 6 — Envoy Gateway routes
+### 6. Envoy Gateway routes
 
 ```bash
 make gateway-apply
 ```
 
-**Success:**
-```
-gateway.gateway.networking.k8s.io/cluster-ingress created
-```
-Verify:
+Wait for `gateway.gateway.networking.k8s.io/cluster-ingress created`, then check
+the Gateway is programmed. This can take 10-15s:
+
 ```bash
 kubectl get gateway cluster-ingress -n envoy-gateway-system \
   -o jsonpath='{.status.conditions[?(@.type=="Programmed")].status}'
-# Expected: True (may take 10-15s)
+# True
 ```
 
-**Idempotent:** yes — `kubectl apply`.
-
----
-
-### 7 — o11y stack
+### 7. o11y stack
 
 ```bash
 make o11y-install
 ```
 
-This installs (in order): ClickHouse operator + cluster → Prometheus → node-exporter →
-OTel Collector → Grafana, then applies all manifests and HTTPRoutes. It requires
-`k8s/o11y/secrets.yaml` (gitignored — copy from `secrets.example.yaml`) for the
-ClickHouse passwords.
+This installs, in order: ClickHouse operator and cluster, Prometheus,
+node-exporter, OTel Collector, Grafana. It then applies the manifests and
+HTTPRoutes. It needs `k8s/o11y/secrets.yaml`, which is gitignored; copy
+`secrets.example.yaml` and fill in the passwords first.
 
 The ClickHouse step blocks until the `KeeperCluster` and `ClickHouseCluster` CRs
-report `Ready`, so a failure there stops the install rather than leaving a
+report `Ready`, so a failure there stops the install instead of leaving a
 collector retrying against a database that never came up.
 
-**Success:**
-```bash
-make o11y-status
-# Expected: all pods 1/1 or 2/2 Running
-```
+Confirm every pod is `1/1` or `2/2` with `make o11y-status`, then check the
+schema exists:
 
-Verify data flow end-to-end:
 ```bash
 kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- \
   clickhouse-client --query "SHOW TABLES FROM otel"
-# Expected: otel_logs, otel_traces, otel_metrics_* tables listed
+# otel_logs, otel_traces, otel_metrics_* tables
 ```
 
-Verify Grafana is reachable (add to /etc/hosts first — see below):
+Grafana should answer once you have added the hosts entry from step 8:
+
 ```bash
-curl -Lk https://grafana.<your-domain>
-# Expected: HTTP 200 (Grafana login page)
+curl -Lk https://grafana.<your-domain>   # HTTP 200, the login page
 ```
 
-**Idempotent:** yes — all `helm upgrade --install` + `kubectl apply`.
+### 8. /etc/hosts (LAN access)
 
----
+Get the LoadBalancer IP:
 
-### 8 — /etc/hosts (LAN access)
-
-Add to `/etc/hosts` on any desktop that needs to reach the services:
-```
-<LB-IP>  <domain> grafana.<domain> hubble.<domain>
-```
-
-Get the LB IP:
 ```bash
 kubectl get gateway cluster-ingress -n envoy-gateway-system \
   -o jsonpath='{.status.addresses[0].value}'
 ```
 
----
+Add it to `/etc/hosts` on any desktop that needs to reach the services:
 
-### 9 — Tailscale (optional, manual)
+```
+<LB-IP>  <domain> grafana.<domain> hubble.<domain>
+```
 
-Requires human interaction — OAuth credentials must be obtained from the Tailscale admin
-console before running `make install`. The admin console steps (enable MagicDNS, update
-ACL, create OAuth client) are documented in `SETUP.md` § 6a and **must be done
-first**.
+### 9. Tailscale (optional, needs a human)
+
+OAuth credentials have to come from the Tailscale admin console before
+`make install` will work. Those steps (enable MagicDNS, update the ACL, create
+the OAuth client) are in [SETUP.md](SETUP.md) § 6a and **must be done first**.
 
 ```bash
 cd k8s/tailscale
 cp values.secret.yaml.example values.secret.yaml
-# edit values.secret.yaml: fill in clientId + clientSecret from SETUP.md § 6a
+# fill in clientId + clientSecret from SETUP.md § 6a
 make install
 ```
 
-**Success:** proxy pods appear in `make status` — one per Ingress (grafana, hubble) plus one
-per exposed Service (otlp).
-May take 30–60 s on first run while Let's Encrypt certs are issued.
+Proxy pods then appear in `make status`, one per Ingress (grafana, hubble) plus
+one per exposed Service (otlp). First run takes 30-60s while Let's Encrypt
+issues certificates.
 
----
-
-### 10 — OTel demo app (optional)
+### 10. OTel demo app (optional)
 
 ```bash
 make otel-demo-install
 ```
 
-Deploys the OpenTelemetry demo (~20 microservices + load generator) into its own
-`otel-demo` namespace. Its collector and bundled backends are disabled; services
-send OTLP straight to `otelcol.o11y`. This is what puts real traces in
-ClickHouse — without it `otel_traces` stays empty.
+Deploys the OpenTelemetry demo, roughly 20 microservices plus a load generator,
+into its own `otel-demo` namespace. Its collector and bundled backends are
+disabled; services send OTLP straight to `otelcol.o11y`. This is what puts real
+traces in ClickHouse, which stays empty without it. Details in
+[docs/otel-demo.md](docs/otel-demo.md).
 
-Requires step 7 first: the demo has no collector of its own, so `otelcol.o11y`
+Step 7 has to come first. The demo has no collector of its own, so `otelcol.o11y`
 must already be up or every service logs export failures.
 
-**Success:**
+First run pulls 25 images, so allow a few minutes. Then confirm traces are
+arriving:
+
 ```bash
 make otel-demo-status          # 25 pods Running
-kubectl exec -n o11y clickhouse-0 -- clickhouse-client --query \
+kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- clickhouse-client --query \
   "SELECT count() FROM otel.otel_traces"
-# Expected: non-zero and climbing within ~2 min of the pods going Ready
+# non-zero and climbing within ~2 min of the pods going Ready
 ```
 
 Also confirm the span-derived metrics reached Prometheus, which is what the
 provisioned "OTel Demo → Spanmetrics" dashboard reads:
+
 ```bash
 kubectl port-forward -n o11y svc/prometheus-server 9090:80 &
 curl -sG http://localhost:9090/api/v1/query \
   --data-urlencode 'query=sum by (service_name) (traces_span_metrics_calls_total)'
-# Expected: one series per demo service
+# one series per demo service
 ```
-
-Allow a few minutes on first run — 25 images to pull.
-
-**Idempotent:** yes — `helm upgrade --install` + `kubectl apply`.
 
 ---
 
-## Idempotency summary
+## Idempotency
 
-| Target | Safe to re-run? | Notes |
-|--------|----------------|-------|
-| `k3s-install` | ✓ | upgrades k3s in place |
-| `cilium-install` | ✓ | helm upgrade |
-| `cilium-lb` | ✓ | kubectl apply |
-| `gateway-install` | ✓ | helm upgrade |
-| `tls-install` | ✓ | kubectl apply --dry-run |
-| `gateway-apply` | ✓ | kubectl apply |
-| `o11y-install` | ✓ | helm upgrade + kubectl apply |
-| `otel-demo-install` | ✓ | helm upgrade |
-| `tailscale-install` | ✓ | helm upgrade + kubectl apply |
+Every install target is safe to re-run, and re-running is how you repair a
+component. See [docs/runbook.md](docs/runbook.md) for restoring a single
+workload without re-applying its whole chart.
+
+| Target | Mechanism |
+|--------|-----------|
+| `k3s-install` | upgrades k3s in place |
+| `cilium-install` | `helm upgrade --install` |
+| `cilium-lb` | `kubectl apply` |
+| `gateway-install` | `helm upgrade --install` |
+| `tls-install` | `kubectl apply --dry-run=client` |
+| `gateway-apply` | `kubectl apply` |
+| `o11y-install` | `helm upgrade --install` + `kubectl apply` |
+| `otel-demo-install` | `helm upgrade --install` |
+| `tailscale-install` | `helm upgrade --install` + `kubectl apply` |
 
 ---
 
 ## When something looks wrong
 
-Don't guess — use the status targets to observe before acting:
+Do not guess. Use the status targets to observe first:
 
 ```bash
 make setup            # missing tools?
 make cilium-status    # Cilium + Hubble pods
-make o11y-status      # all o11y pods (look for CrashLoopBackOff / ErrImagePull)
+make o11y-status      # all o11y pods; look for CrashLoopBackOff / ErrImagePull
 make o11y-routes      # HTTPRoute accepted/attached status
-make tailscale-status # operator + ingress proxy pods (if installed)
+make tailscale-status # operator + ingress proxy pods, if installed
 ```
 
-From there: read pod logs (`kubectl logs -n <ns> <pod> --tail=40`),
-describe the failing resource (`kubectl describe pod/httproute/gateway …`),
-and re-run the relevant `make <step>` once the root cause is clear.
-All install targets are idempotent — re-running is always safe.
+From there, read pod logs (`kubectl logs -n <ns> <pod> --tail=40`), describe the
+failing resource, and re-run the relevant target once you know the cause.
+[docs/runbook.md](docs/runbook.md) maps specific symptoms to fixes.
 
 ---
 
-## Post-deploy verification checklist
+## Post-deploy verification
 
 ```bash
 # 1. All o11y pods Running
@@ -337,10 +296,10 @@ kubectl get gateway cluster-ingress -n envoy-gateway-system
 kubectl exec -n o11y clickhouse-clickhouse-0-0-0 -- \
   clickhouse-client --query "SHOW TABLES FROM otel"
 
-# 4. Grafana reachable (via LB IP with Host header)
+# 4. Grafana reachable via LB IP with a Host header
 LB=$(kubectl get gateway cluster-ingress -n envoy-gateway-system \
   -o jsonpath='{.status.addresses[0].value}')
 curl -skL -H "Host: grafana.$(hostname | sed 's/[^.]*\.//')" https://$LB \
   -o /dev/null -w "%{http_code}\n"
-# Expected: 200
+# 200
 ```

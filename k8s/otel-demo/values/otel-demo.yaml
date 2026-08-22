@@ -1,4 +1,4 @@
-# OpenTelemetry Demo — the microservice workload that exercises in-cluster OTLP
+# OpenTelemetry Demo: the microservice workload that exercises in-cluster OTLP
 # ingest. Deployed per https://opentelemetry.io/docs/demo/kubernetes-deployment/
 #
 #   demo services --OTLP--> otelcol.o11y --> ClickHouse
@@ -11,7 +11,7 @@
 #
 # What the demo collector took with it: the span_metrics connector (rebuilt in
 # k8s/o11y/values/otel-collector.yaml, which is what the Spanmetrics dashboard
-# reads) and its OTTL span-name sanitisation (not rebuilt — see README).
+# reads) and its OTTL span-name sanitisation (not rebuilt; see docs/otel-demo.md).
 # The four bundled backends are off; o11y already runs Grafana, Prometheus and
 # ClickHouse, and this stack has one place telemetry lands.
 
@@ -27,7 +27,8 @@ opentelemetry-collector:
 
 components:
   # The two JVM services ship with a 300Mi limit and are OOMKilled a few seconds
-  # into startup here — the JVM plus the OTel Java agent does not fit. Upstream
+  # into startup here, because the JVM plus the OTel Java agent does not fit.
+  # Upstream
   # tunes these for a constrained CI runner; this node has memory to spare.
   ad:
     resources:

@@ -1,12 +1,12 @@
-# OpenTelemetry Collector — the single telemetry pipeline. Two flows, one process:
+# OpenTelemetry Collector: the single telemetry pipeline. Two flows, one process:
 #
 #   apps   --OTLP-->    otlp receiver       --> clickhouse exporter        (logs/traces/metrics)
 #   cilium --scrape-->  prometheus/scrape   --> prometheus_remote_write    (infra metrics)
 #
 # Cilium/Hubble dashboards are PromQL, so those go to Prometheus; everything
-# OTLP goes to ClickHouse. See README "Metrics live in two stores".
+# OTLP goes to ClickHouse. See docs/telemetry.md "Metrics live in two stores".
 #
-# The ONLY place scrape targets belong — Prometheus's own discovery is off.
+# The ONLY place scrape targets belong, because Prometheus's own discovery is off.
 # Chart pinned in the Makefile; needs secrets.yaml for the ClickHouse password.
 
 mode: daemonset          # node-local: k8s_attributes filters pods by spec.nodeName
@@ -31,7 +31,7 @@ presets:
     enabled: true
 
 service:
-  enabled: true           # ClusterIP `otelcol` — the OTLP endpoint apps target
+  enabled: true           # ClusterIP `otelcol`, the OTLP endpoint apps target
 
 ports:
   otlp:
@@ -48,7 +48,7 @@ ports:
     protocol: TCP
     hostPort: null
 
-  # Legacy wire formats we do not speak — off to avoid open ports.
+  # Legacy wire formats we do not speak. Off, so the ports stay closed.
   jaeger-compact:
     enabled: false
   jaeger-grpc:
@@ -78,7 +78,7 @@ config:
           endpoint: 0.0.0.0:4318
 
     # Cilium/Hubble/operator and host scraping. Kubernetes SD (pod role) rather
-    # than localhost — the DaemonSet happens to be node-local today, but SD keeps
+    # than localhost. The DaemonSet happens to be node-local today, but SD keeps
     # this correct if the collector ever moves to a Deployment.
     prometheus/scrape:
       config:
@@ -122,7 +122,7 @@ config:
                 regex: operator;prometheus
                 action: keep
 
-          # The homelab host — CPU, load, memory, disk, filesystem, network.
+          # The homelab host: CPU, load, memory, disk, filesystem, network.
           # node-exporter lives in its own namespace because o11y's
           # `enforce: baseline` forbids the host access it needs (namespace.yaml).
           # It runs hostNetwork, so relabel `instance` off the node IP to the
@@ -143,14 +143,14 @@ config:
                 target_label: instance
 
           # Placeholder for app metrics scraped over plain Prometheus.
-          # Apps that speak OTLP should push to this collector instead — see
-          # README "Adding a service".
+          # Apps that speak OTLP should push to this collector instead; see
+          # docs/telemetry.md "Adding a service".
           - job_name: go-services
             scrape_interval: 15s
             static_configs:
               - targets: []
 
-    # Wire formats we do not accept — null removes the chart's defaults.
+    # Wire formats we do not accept. null removes the chart's defaults.
     jaeger: null
     zipkin: null
 
@@ -162,7 +162,7 @@ config:
       # resolves tailnet traffic to the Tailscale proxy and would stamp every
       # external payload k8s.namespace.name=tailscale. Excluding the proxy
       # (ts-<ingress>-<hash>-N) drops it from the pod cache so the lookup misses.
-      # Same reason jaeger-agent is excluded by default — this replaces that
+      # Same reason jaeger-agent is excluded by default. This replaces that
       # default, which is fine; no Jaeger here.
       #
       # Anything else that forwards OTLP on behalf of other pods needs adding
@@ -183,21 +183,21 @@ config:
             from: pod
 
   # RED metrics (rate, errors, duration) derived from spans. Any app sending
-  # traces gets them for free — no extra instrumentation.
+  # traces gets them for free, with no extra instrumentation.
   #
   # This is a PromQL-shaped signal (rate/histogram_quantile over counters and
-  # buckets), so it goes to Prometheus, not ClickHouse, and the split in the
-  # README holds. Emits traces_span_metrics_calls_total and
-  # traces_span_metrics_duration_milliseconds_* — the names the OTel Demo's
+  # buckets), so it goes to Prometheus, not ClickHouse, and the split in
+  # docs/telemetry.md holds. Emits traces_span_metrics_calls_total and
+  # traces_span_metrics_duration_milliseconds_*, the names the OTel Demo's
   # Spanmetrics dashboard queries.
   #
   # Cardinality: one series per service × span name × status code. Instrument
   # span names as low-cardinality routes (/api/products/{id}, not the raw URL);
   # anything that embeds an ID in the span name multiplies series here.
   # Left on the connector's default buckets, which run out to 15s. A custom set
-  # topping out at 5s clamped checkout's p95 to exactly 5000ms — its order
-  # pipeline genuinely runs longer, and histogram_quantile cannot see past the
-  # highest finite bucket.
+  # topping out at 5s clamped checkout's p95 to exactly 5000ms, because its
+  # order pipeline really does run longer and histogram_quantile cannot see past
+  # the highest finite bucket.
   connectors:
     spanmetrics: {}
 
@@ -213,9 +213,9 @@ config:
       traces_table_name: otel_traces
       metrics_table_name: otel_metrics
       create_schema: true            # collector owns the DDL; tables made on first write
-      ttl: 0                         # keep forever.
-                                     # Applies ONLY to tables the exporter creates. To change
-                                     # retention on existing tables you must also run:
+      ttl: 0                         # keep forever. Applies ONLY to tables the exporter
+                                     # creates, so changing retention on existing tables
+                                     # also needs:
                                      #   ALTER TABLE otel.<table> MODIFY TTL <expr>
       compress: lz4
       async_insert: true

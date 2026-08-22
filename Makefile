@@ -1,5 +1,5 @@
 KUBECONFIG ?= /etc/rancher/k3s/k3s.yaml
-# Primary outbound IP — derives the NIC via the routing table.
+# Primary outbound IP, with the NIC derived via the routing table.
 # Override with: make k3s-install NODE_IP=192.168.x.y
 _IP_CMD    = ip route get 1 | awk 'NR==1{for(i=1;i<NF;i++) if($$i=="src") print $$(i+1)}'
 NODE_IP   ?= $(shell $(_IP_CMD))
@@ -68,13 +68,13 @@ help:
 	@echo "Optional workloads:"
 	@echo "  make otel-demo-install    Install the OpenTelemetry demo app (exports to o11y)"
 	@echo ""
-	@echo "Restoring a service (install targets are idempotent — re-run to reconcile):"
+	@echo "Restoring a service (install targets are idempotent; re-run to reconcile):"
 	@echo "  make cilium-upgrade       Recreate Cilium/Hubble objects (relay, UI)"
 	@echo "  make o11y-install         Reconcile the o11y stack"
 	@echo "  make o11y-clickhouse      Re-apply just ClickHouse (operator + CRs)"
 	@echo "  make tailscale-install    Recreate the operator + Ingress resources"
 	@echo "  make otel-demo-install    Recreate the demo namespace + workloads"
-	@echo "  See 'Restoring a single service' in the README for one-component restores."
+	@echo "  See docs/runbook.md for one-component restores and symptom-to-fix."
 	@echo ""
 
 # ─── ip ─────────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ HELM_REPOS := \
 	open-telemetry=https://open-telemetry.github.io/opentelemetry-helm-charts \
 	prometheus-community=https://prometheus-community.github.io/helm-charts
 
-# The ClickHouse operator is OCI-only — no `helm repo add`, the URL is the chart.
+# The ClickHouse operator is OCI-only: no `helm repo add`, the URL is the chart.
 CHOP_CHART := oci://ghcr.io/clickhouse/clickhouse-operator-helm
 
 NS         := o11y
@@ -42,8 +42,9 @@ secrets:
 	done
 
 # Chart versions are pinned so `make install` is reproducible. Leaving one
-# unpinned means Helm silently takes whatever is newest in the repo cache —
-# prometheus drifted 29.23.0 -> 29.24.0 mid-deploy that way. Bump deliberately,
+# unpinned means Helm takes whatever is newest in the repo cache without
+# saying so; prometheus drifted 29.23.0 -> 29.24.0 mid-deploy that way. Bump on
+# purpose,
 # and re-check values/prometheus.yaml's scrapeConfigs override when you do.
 CHOP_VERSION    := 0.0.7
 PROM_VERSION    := 29.24.0
@@ -51,7 +52,7 @@ OTELCOL_VERSION := 0.166.0
 GRAFANA_VERSION := 10.5.15
 NODEEXP_VERSION := 4.56.1
 
-# ClickHouse is not a Helm release — the operator's chart installs a controller
+# ClickHouse is not a Helm release. The operator's chart installs a controller
 # and two CRDs, and the database itself is a pair of CRs. So `clickhouse` runs
 # on its own before everything downstream of it.
 install: repos secrets clickhouse
@@ -79,7 +80,7 @@ clickhouse: secrets
 		keepercluster/clickhouse clickhousecluster/clickhouse
 
 # CRDs are installed with keep: true, so `helm uninstall` leaves them behind on
-# purpose — deleting them would cascade into the cluster and its PVC. The
+# purpose, since deleting them would cascade into the cluster and its PVC. The
 # explicit delete below is the only thing that drops ClickHouse's data.
 uninstall:
 	helm uninstall grafana prometheus otelcol -n $(NS) || true
@@ -102,7 +103,7 @@ routes:
 
 # Reconcile Grafana's admin password with the grafana-auth Secret. Needed
 # because Grafana seeds GF_SECURITY_ADMIN_PASSWORD only when it creates a new
-# database — on an existing PVC the env var is ignored, so a rotated Secret
+# database. On an existing PVC the env var is ignored, so a rotated Secret
 # applies cleanly and then fails to log in. Reads the password from the
 # container's own env so nothing is passed on the command line.
 grafana-admin:
@@ -114,7 +115,7 @@ grafana-admin:
 ch-client:
 	kubectl exec -it -n $(NS) clickhouse-clickhouse-0-0-0 -- clickhouse-client
 
-# Port-forwards for debugging — not needed in normal operation.
+# Port-forwards for debugging. Not needed in normal operation.
 # Service and pod names come from the CR names in manifests/clickhouse-cluster.yaml.
 pf-clickhouse:
 	kubectl port-forward -n $(NS) svc/clickhouse-server 8123:8123
@@ -123,6 +124,6 @@ pf-grafana:
 	kubectl port-forward -n $(NS) svc/grafana 3000:3000
 
 # Collector health endpoint (:13133) and self-metrics (:8888).
-# There is no debug UI — inspect the collector through these two ports.
+# There is no debug UI; inspect the collector through these two ports.
 pf-otel:
 	kubectl port-forward -n $(NS) ds/otelcol-agent 13133:13133 8888:8888

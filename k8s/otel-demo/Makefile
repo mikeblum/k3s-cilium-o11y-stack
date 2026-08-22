@@ -5,7 +5,8 @@ NS      := otel-demo
 RELEASE := my-otel-demo
 
 # Pinned for the same reason as the o11y charts: an unpinned version means Helm
-# silently takes whatever is newest in the repo cache. 0.41.0 ships appVersion 3.0.0.
+# takes whatever is newest in the repo cache without saying so. 0.41.0 ships
+# appVersion 3.0.0.
 DEMO_VERSION := 0.41.0
 
 .PHONY: repos install uninstall status logs pf-frontend
