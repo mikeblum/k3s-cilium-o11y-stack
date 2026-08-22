@@ -1,12 +1,9 @@
-# Cilium Helm values — k3s single-node setup
-# Requires: --set k8sServiceHost=<NODE_IP> at install time
-#           (see infra/cilium/install.sh)
+# Cilium Helm values for a single-node k3s cluster.
+#
+# k8sServiceHost and k8sServicePort are not here: install.sh passes them with
+# --set, because the API server address is the one value that varies per host.
 
 kubeProxyReplacement: true
-# k8sServiceHost and k8sServicePort are passed via --set at install time
-
-operator:
-  replicas: 1  # single-node
 
 # L2 announcements so LoadBalancer services get a real LAN IP
 l2announcements:
@@ -14,14 +11,16 @@ l2announcements:
 externalIPs:
   enabled: true
 
-# Built-in Envoy proxy for L7 policy + Gateway API
+# Cilium's built-in Envoy proxy, which backs L7 policy and Gateway API.
+# Separate from the Envoy Gateway controller in envoy-gateway-system.
 envoy:
   enabled: true
 
 gatewayAPI:
   enabled: true
 
-# Hubble — network observability
+# Hubble: network observability. The metrics below are scraped by the OTel
+# Collector, not Prometheus (k8s/o11y/values/otel-collector.yaml).
 hubble:
   enabled: true
   relay:
@@ -42,22 +41,21 @@ hubble:
       - icmp
       - "httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction"
 
-# Cilium agent Prometheus metrics
+# Agent metrics. The agent runs hostNetwork, so this is :9962 on the node
+# itself — handy for a curl when the collector's scrape job looks wrong.
 prometheus:
   enabled: true
   port: 9962
 
-# Cilium operator Prometheus metrics
 operator:
-  replicas: 1
+  replicas: 1        # single node, so a second replica would never schedule
   prometheus:
     enabled: true
     port: 9963
 
-# Enable Bandwidth Manager (eBPF-based traffic shaping)
+# eBPF-based traffic shaping.
 bandwidthManager:
   enabled: true
 
-# Host firewall for node-level policies
 hostFirewall:
-  enabled: false  # enable once policies are defined
+  enabled: false     # turn on once node-level policies exist

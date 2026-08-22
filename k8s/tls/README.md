@@ -15,8 +15,8 @@ mkcert CA (rootCA.pem)
                     └── referenced by Envoy Gateway HTTPS listener
 ```
 
-Browsers and clients trust the cert because they trust the mkcert CA.
-Any device that doesn't have the CA installed will see a TLS warning.
+Browsers and clients trust the cert because they trust the mkcert CA. Any device
+without the CA installed sees a TLS warning.
 
 ## First-time setup
 
@@ -30,7 +30,8 @@ This:
 2. Generates a wildcard cert for `example.local` and `*.example.local`
 3. Creates/updates the `example-local-tls` Secret in `envoy-gateway-system`
 
-Remote access is routed through Tailscale MagicDNS + let's Encrypt certs via `<tailnet>.ts.net`.
+Remote access is routed through Tailscale MagicDNS and Let's Encrypt certs via
+`<tailnet>.ts.net`.
 
 ## Check expiry
 
