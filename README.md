@@ -1,8 +1,8 @@
 # k3s-cilium-o11y-stack 🔭 
 
-<h1 align="center">
+<h3 align="center">
     Local-first, eBPF-powered, OpenTelemetry-native observability stack out of the box 📦
-</h1>
+</h3>
 
 <p align="center">
   <a href="https://opentelemetry.io/">
