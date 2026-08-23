@@ -24,22 +24,33 @@
       </a>
     </td>
   </tr>
+  <tr>
+    <td align="center" valign="middle">
+      <a href="https://cilium.io/">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="./img/logos/cilium-logo.svg">
+          <img src="./img/logos/cilium-logo-light.svg" alt="Cilium logo" height="180">
+        </picture>
+      </a>
+    </td>
+    <td align="center" valign="middle">
+      <a href="https://github.com/cilium/hubble">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="./img/logos/hubble-logo.svg">
+          <img src="./img/logos/hubble-logo-light.svg" alt="Hubble logo" height="180">
+        </picture>
+      </a>
+    </td>
+    <td align="center" valign="middle">
+      <a href="https://tailscale.com/">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="./img/logos/tailscale-logo.svg">
+          <img src="./img/logos/tailscale-logo-light.svg" alt="Tailscale logo" height="180">
+        </picture>
+      </a>
+    </td>
+  </tr>
 </table>
-
-<p align="center">
-  <a href="https://cilium.io/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/cilium-logo.svg">
-      <img src="./img/logos/cilium-logo-light.svg" alt="Cilium logo" height="180">
-    </picture>
-  </a>
-  <a href="https://github.com/cilium/hubble">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/hubble-logo.svg">
-      <img src="./img/logos/hubble-logo-light.svg" alt="Hubble logo" height="180">
-    </picture>
-  </a>
-</p>
 
 Kubernetes-backed observability normally arrives as a cloud bill and a vendor's
 agent. This project runs the same industry-standard components on hardware you
@@ -173,3 +184,6 @@ the same upstream ClickHouse, without the parts Grafana already covers.
 ClickHouse, the ClickHouse logo, and related marks are trademarks or registered
 trademarks of ClickHouse, Inc. or its affiliates. This project is not affiliated
 with or endorsed by ClickHouse, Inc.
+
+Tailscale is a registered trademark of Tailscale Inc. This project is not
+affiliated with or endorsed by Tailscale Inc.
