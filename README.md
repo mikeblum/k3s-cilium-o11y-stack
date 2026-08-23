@@ -6,16 +6,25 @@
 
 <p align="center">
   <a href="https://opentelemetry.io/">
-    <img src="./img/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
+    <img src="./img/logos/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
   </a>
   <a href="https://cilium.io/">
-    <img src="./img/logos/cilium-logo.svg" alt="Cilium logo" height="180">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/cilium-logo.svg">
+      <img src="./img/logos/cilium-logo-light.svg" alt="Cilium logo" height="180">
+    </picture>
   </a>
   <a href="https://github.com/cilium/hubble">
-    <img src="./img/logos/hubble-logo.svg" alt="Hubble logo" height="180">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/hubble-logo.svg">
+      <img src="./img/logos/hubble-logo-light.svg" alt="Hubble logo" height="180">
+    </picture>
   </a>
   <a href="https://clickhouse.com/">
-    <img src="./img/logos/clickhouse-logo.svg" alt="Clickhouse logo" height="180">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/clickhouse-logo.svg">
+      <img src="./img/logos/clickhouse-logo-light.svg" alt="ClickHouse logo" height="180">
+    </picture>
   </a>
   <a href="https://grafana.com/oss/grafana/">
     <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
