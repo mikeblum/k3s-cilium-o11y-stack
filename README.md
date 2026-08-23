@@ -8,6 +8,15 @@
   <a href="https://opentelemetry.io/">
     <img src="./img/logos/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
   </a>
+  <a href="https://clickhouse.com/">
+    <img src="./img/logos/clickhouse-badge.svg" alt="ClickHouse logo" height="180">
+  </a>
+  <a href="https://grafana.com/oss/grafana/">
+    <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://cilium.io/">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="./img/logos/cilium-logo.svg">
@@ -19,15 +28,6 @@
       <source media="(prefers-color-scheme: dark)" srcset="./img/logos/hubble-logo.svg">
       <img src="./img/logos/hubble-logo-light.svg" alt="Hubble logo" height="180">
     </picture>
-  </a>
-  <a href="https://clickhouse.com/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/clickhouse-logo.svg">
-      <img src="./img/logos/clickhouse-logo-light.svg" alt="ClickHouse logo" height="180">
-    </picture>
-  </a>
-  <a href="https://grafana.com/oss/grafana/">
-    <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
   </a>
 </p>
 
@@ -157,3 +157,9 @@ be switched off. So we install that operator directly and declare the
 `KeeperCluster` and `ClickHouseCluster` ourselves in
 [`k8s/o11y/manifests/clickhouse-cluster.yaml`](k8s/o11y/manifests/clickhouse-cluster.yaml):
 the same upstream ClickHouse, without the parts Grafana already covers.
+
+## Trademarks
+
+ClickHouse, the ClickHouse logo, and related marks are trademarks or registered
+trademarks of ClickHouse, Inc. or its affiliates. This project is not affiliated
+with or endorsed by ClickHouse, Inc.
