@@ -142,6 +142,13 @@ config:
               - source_labels: [__meta_kubernetes_pod_node_name]
                 target_label: instance
 
+          # Pi-hole: a LAN appliance, not a cluster pod, so there's no
+          # kubernetes_sd_configs role for it — plain static_configs by IP.
+          - job_name: pihole
+            scrape_interval: 15s
+            static_configs:
+              - targets: ["192.168.86.100:9617"]
+
           # Placeholder for app metrics scraped over plain Prometheus.
           # Apps that speak OTLP should push to this collector instead; see
           # docs/telemetry.md "Adding a service".

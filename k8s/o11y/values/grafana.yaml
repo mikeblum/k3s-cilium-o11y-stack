@@ -120,6 +120,13 @@ dashboardProviders:
         allowUiUpdates: true
         options:
           path: /var/lib/grafana/dashboards/clickhouse
+      - name: pihole
+        folder: Pi-hole
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/pihole
 
 # Dashboards fetched at pod startup by the download-dashboards init container.
 # Top-level key must match a provider name above; each entry becomes
@@ -210,3 +217,12 @@ dashboards:
     node-exporter:
       gnetId: 1860          # Node Exporter Full
       revision: 45
+
+  pihole:
+    # Not on grafana.com, so `url` rather than `gnetId`, same as the ClickHouse
+    # dashboards above. Reads the `pihole` scrape job in values/otel-collector.yaml.
+    exporter:
+      url: https://raw.githubusercontent.com/eko/pihole-exporter/master/grafana/dashboard.json
+      datasource:
+        - name: DS_PROMETHEUS
+          value: prometheus
