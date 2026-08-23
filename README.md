@@ -1,6 +1,26 @@
-# k3s-cilium-o11y-stack
+# k3s-cilium-o11y-stack 🔭 
 
-> A local-first, eBPF-powered, OpenTelemetry-native observability stack on one box.
+<h1 align="center">
+    Local-first, eBPF-powered, OpenTelemetry-native observability stack out of the box 📦
+</h1>
+
+<p align="center">
+  <a href="https://opentelemetry.io/">
+    <img src="./img/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
+  </a>
+  <a href="https://cilium.io/">
+    <img src="./img/logos/cilium-logo.svg" alt="Cilium logo" height="180">
+  </a>
+  <a href="https://github.com/cilium/hubble">
+    <img src="./img/logos/hubble-logo.svg" alt="Hubble logo" height="180">
+  </a>
+  <a href="https://clickhouse.com/">
+    <img src="./img/logos/clickhouse-logo.svg" alt="Clickhouse logo" height="180">
+  </a>
+  <a href="https://grafana.com/oss/grafana/">
+    <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
+  </a>
+</p>
 
 Kubernetes-backed observability normally arrives as a cloud bill and a vendor's
 agent. This project runs the same industry-standard components on hardware you
