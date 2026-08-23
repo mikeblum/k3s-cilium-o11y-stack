@@ -62,9 +62,13 @@ make gateway-apply    # GatewayClass + cluster-ingress Gateway
 make o11y-install     # ClickHouse, Prometheus, OTel Collector, Grafana
 ```
 
-Then `make o11y-status`. Optional from here: `make tailscale-install` for remote
-access, and `make otel-demo-install` for a workload that produces real
-telemetry.
+Then verify, and add either optional piece:
+
+```bash
+make o11y-status         # confirm the stack came up
+make tailscale-install   # optional: remote access over your tailnet
+make otel-demo-install   # optional: a workload that produces real telemetry
+```
 
 `make help` prints every target alongside the resolved value of each variable.
 
