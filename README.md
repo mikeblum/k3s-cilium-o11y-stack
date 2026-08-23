@@ -4,53 +4,39 @@
     Local-first, eBPF-powered, OpenTelemetry-native observability stack out of the box 📦
 </h3>
 
-<table align="center" border="0">
-  <tr>
-    <td align="center" valign="middle">
-      <a href="https://opentelemetry.io/">
-        <img src="./img/logos/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
-      </a>
-    </td>
-    <td align="center" valign="middle">
-      <a href="https://clickhouse.com/">
-        <img src="./img/logos/clickhouse-badge.svg" alt="ClickHouse logo" height="150">
-      </a>
-      <br>
-      <a href="https://clickhouse.com/">ClickHouse</a>
-    </td>
-    <td align="center" valign="middle">
-      <a href="https://grafana.com/oss/grafana/">
-        <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" valign="middle">
-      <a href="https://cilium.io/">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="./img/logos/cilium-logo.svg">
-          <img src="./img/logos/cilium-logo-light.svg" alt="Cilium logo" height="180">
-        </picture>
-      </a>
-    </td>
-    <td align="center" valign="middle">
-      <a href="https://github.com/cilium/hubble">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="./img/logos/hubble-logo.svg">
-          <img src="./img/logos/hubble-logo-light.svg" alt="Hubble logo" height="180">
-        </picture>
-      </a>
-    </td>
-    <td align="center" valign="middle">
-      <a href="https://tailscale.com/">
-        <picture>
-          <source media="(prefers-color-scheme: dark)" srcset="./img/logos/tailscale-logo.svg">
-          <img src="./img/logos/tailscale-logo-light.svg" alt="Tailscale logo" height="180">
-        </picture>
-      </a>
-    </td>
-  </tr>
-</table>
+<div align="center">
+  <a href="https://opentelemetry.io/">
+    <img src="./img/logos/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
+  </a>
+  <a href="https://clickhouse.com/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/clickhouse-lockup.svg">
+      <img src="./img/logos/clickhouse-lockup-light.svg" alt="ClickHouse logo" height="180">
+    </picture>
+  </a>
+  <a href="https://grafana.com/oss/grafana/">
+    <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
+  </a>
+  <br>
+  <a href="https://cilium.io/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/cilium-logo.svg">
+      <img src="./img/logos/cilium-logo-light.svg" alt="Cilium logo" height="180">
+    </picture>
+  </a>
+  <a href="https://github.com/cilium/hubble">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/hubble-logo.svg">
+      <img src="./img/logos/hubble-logo-light.svg" alt="Hubble logo" height="180">
+    </picture>
+  </a>
+  <a href="https://tailscale.com/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/tailscale-logo.svg">
+      <img src="./img/logos/tailscale-logo-light.svg" alt="Tailscale logo" height="180">
+    </picture>
+  </a>
+</div>
 
 Kubernetes-backed observability normally arrives as a cloud bill and a vendor's
 agent. This project runs the same industry-standard components on hardware you
