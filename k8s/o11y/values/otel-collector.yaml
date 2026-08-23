@@ -149,13 +149,11 @@ config:
             static_configs:
               - targets: ["192.168.86.100:9617"]
 
-          # Placeholder for app metrics scraped over plain Prometheus.
-          # Apps that speak OTLP should push to this collector instead; see
-          # docs/telemetry.md "Adding a service".
-          - job_name: go-services
+          # exe.dev: exe.roguequery.dev box
+          - job_name: exe.roguequery.dev
             scrape_interval: 15s
             static_configs:
-              - targets: []
+              - targets: ["100.81.64.30:9100"]
 
     # Wire formats we do not accept. null removes the chart's defaults.
     jaeger: null
