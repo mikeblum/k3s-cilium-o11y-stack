@@ -10,8 +10,8 @@
   </a>
   <a href="https://clickhouse.com/">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/clickhouse-lockup.svg">
-      <img src="./img/logos/clickhouse-lockup-light.svg" alt="ClickHouse logo" height="180">
+      <source media="(prefers-color-scheme: dark)" srcset="./img/logos/clickhouse-logo.svg">
+      <img src="./img/logos/clickhouse-logo-light.svg" alt="ClickHouse logo" height="180">
     </picture>
   </a>
   <a href="https://grafana.com/oss/grafana/">
