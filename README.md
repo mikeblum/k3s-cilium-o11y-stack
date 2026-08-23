@@ -4,17 +4,27 @@
     Local-first, eBPF-powered, OpenTelemetry-native observability stack out of the box 📦
 </h3>
 
-<p align="center">
-  <a href="https://opentelemetry.io/">
-    <img src="./img/logos/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
-  </a>
-  <a href="https://clickhouse.com/">
-    <img src="./img/logos/clickhouse-badge.svg" alt="ClickHouse logo" height="180">
-  </a>
-  <a href="https://grafana.com/oss/grafana/">
-    <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
-  </a>
-</p>
+<table align="center" border="0">
+  <tr>
+    <td align="center" valign="middle">
+      <a href="https://opentelemetry.io/">
+        <img src="./img/logos/opentelemetry-logo.svg" alt="OpenTelemetry logo" height="180">
+      </a>
+    </td>
+    <td align="center" valign="middle">
+      <a href="https://clickhouse.com/">
+        <img src="./img/logos/clickhouse-badge.svg" alt="ClickHouse logo" height="150">
+      </a>
+      <br>
+      <a href="https://clickhouse.com/">ClickHouse</a>
+    </td>
+    <td align="center" valign="middle">
+      <a href="https://grafana.com/oss/grafana/">
+        <img src="./img/logos/grafana-logo.svg" alt="Grafana logo" height="180">
+      </a>
+    </td>
+  </tr>
+</table>
 
 <p align="center">
   <a href="https://cilium.io/">
