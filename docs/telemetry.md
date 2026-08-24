@@ -63,7 +63,7 @@ your app exposes a Prometheus-style `/metrics` endpoint instead.
 - job_name: myapp
   scrape_interval: 15s
   static_configs:
-    - targets: ["myapp.myapp.svc.cluster.local:2112"]
+    - targets: ["myapp.<ns>.svc.cluster.local:2112"]
 ```
 
 ```bash
