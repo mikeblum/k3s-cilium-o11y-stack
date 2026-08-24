@@ -267,8 +267,8 @@ you want certainty.
 Expect these names, since the operator derives them from the CR name rather than
 the chart:
 
-| Thing | Name |
-|-------|------|
+| Resource | Name |
+|----------|------|
 | Server pod | `clickhouse-clickhouse-0-0-0` |
 | Stable ClusterIP Service | `clickhouse-server` |
 
