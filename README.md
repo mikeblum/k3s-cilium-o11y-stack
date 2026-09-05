@@ -126,6 +126,7 @@ collector.
 |-----|--------------|
 | [SETUP.md](SETUP.md) | Prerequisites and the step-by-step bootstrap, including the Tailscale admin console steps |
 | [docs/telemetry.md](docs/telemetry.md) | Which store holds which signal, RED metrics from spans, adding your own service, external OTLP ingest |
+| [docs/claude-code-telemetry.md](docs/claude-code-telemetry.md) | Worked example of an OTLP producer outside the cluster, using Claude Code |
 | [docs/otel-demo.md](docs/otel-demo.md) | The optional OpenTelemetry demo app, its dashboards, and its known rough edges |
 | [docs/runbook.md](docs/runbook.md) | When things go wrong: triage, symptom-to-fix, and restoring a deleted component |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Conventions for changing charts, values, and docs, and how to verify a change |
