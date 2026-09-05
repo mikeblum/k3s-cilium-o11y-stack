@@ -61,6 +61,7 @@ install: repos secrets clickhouse
 	helm upgrade --install otelcol       open-telemetry/opentelemetry-collector       -n $(NS) -f values/otel-collector.yaml   --version $(OTELCOL_VERSION)
 	helm upgrade --install grafana       grafana/grafana                              -n $(NS) -f values/grafana.yaml          --version $(GRAFANA_VERSION)
 	kubectl apply -f manifests/grafana-datasources-configmap.yaml
+	kubectl apply -f manifests/grafana-dashboard-scrape-targets.yaml
 	kubectl apply -f manifests/reference-grants.yaml
 	DOMAIN=$(DOMAIN) envsubst '$${DOMAIN}' < manifests/gateway-routes.yaml | kubectl apply -f -
 

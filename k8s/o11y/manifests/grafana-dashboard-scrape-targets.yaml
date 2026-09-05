@@ -1,0 +1,340 @@
+# "OTel Scrape Targets" — target-health view for the jobs under
+# config.receivers.prometheus/scrape in values/otel-collector.yaml (cilium-agent,
+# hubble, cilium-operator, node-exporter, pihole, exe.roguequery.dev, and any
+# future `myapp`-style additions from docs/telemetry.md).
+#
+# Why this exists: Prometheus's own /targets page is blind to these, because
+# Prometheus never scrapes them itself — the collector does, then
+# remote_writes the result. There was no equivalent view in Grafana, so a
+# target silently failing to scrape (wrong port, pod restarted, relabel typo)
+# showed up only as gaps in individual dashboards, not as a target-down signal.
+#
+# The otelcol-scraped `up`/`scrape_*` series carry
+# otel_scope_name="github.com/.../receiver/prometheusreceiver", which is what
+# distinguishes them from Prometheus's own native scrapeConfigs targets
+# (kubernetes-api-servers, kubernetes-nodes, cadvisor, kube-state-metrics,
+# prometheus itself — see values/prometheus.yaml) sharing the same `up` metric.
+#
+# Lives in o11y (not otel-demo) since it covers the stack's own scrape jobs,
+# not demo app telemetry. Sidecar-loaded like grafana-dashboard-otel-demo-spanmetrics.yaml,
+# so it survives independently of the dashboardProviders download list in
+# values/grafana.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-scrape-targets
+  namespace: o11y
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: "OTel"
+data:
+  scrape-targets.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": { "limit": 100, "matchAny": false, "tags": [], "type": "dashboard" },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "Health of the jobs scraped by the OTel Collector's prometheus/scrape receiver (values/otel-collector.yaml), remote-written to Prometheus. Distinct from Prometheus's own native scrapeConfigs targets, which its built-in /targets page already covers.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "fieldConfig": { "defaults": {}, "overrides": [] },
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "options": {
+            "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+            "content": "Targets the collector scrapes itself (job_name entries under `prometheus/scrape` in values/otel-collector.yaml), not Prometheus's own native scrapeConfigs. If a target here drops to 0, check the pod/relabel rules for that job before assuming the app is fine and the dashboard is just empty.",
+            "mode": "markdown"
+          },
+          "pluginVersion": "11.4.0",
+          "title": "",
+          "type": "text"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 3 },
+          "id": 1,
+          "panels": [],
+          "title": "Target Health",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
+          "id": 2,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "editorMode": "code",
+              "expr": "count(up{otel_scope_name=~\".*prometheusreceiver\", job=~\"$job\"} == 0) or vector(0)",
+              "instant": true,
+              "legendFormat": "Down",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Targets Down",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "fixed", "fixedColor": "green" },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 4 },
+          "id": 3,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "editorMode": "code",
+              "expr": "count(up{otel_scope_name=~\".*prometheusreceiver\", job=~\"$job\"} == 1) or vector(0)",
+              "instant": true,
+              "legendFormat": "Up",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Targets Up",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": {
+                "align": "auto",
+                "cellOptions": { "type": "color-background" },
+                "inspect": false
+              },
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+                { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Time" },
+                "properties": [{ "id": "custom.hidden", "value": true }]
+              }
+            ]
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "id": 4,
+          "options": {
+            "cellHeight": "sm",
+            "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+            "showHeader": true,
+            "sortBy": [{ "desc": false, "displayName": "job" }]
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "editorMode": "code",
+              "expr": "up{otel_scope_name=~\".*prometheusreceiver\", job=~\"$job\"}",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Target Status",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "otel_scope_name": true,
+                  "otel_scope_version": true
+                },
+                "indexByName": {},
+                "renameByName": { "Value": "up" }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+          "id": 5,
+          "panels": [],
+          "title": "Scrape Performance",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineWidth": 1,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "mappings": [],
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 13 },
+          "id": 6,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "editorMode": "code",
+              "expr": "scrape_duration_seconds{otel_scope_name=~\".*prometheusreceiver\", job=~\"$job\"}",
+              "legendFormat": "{{job}} - {{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Scrape Duration",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineWidth": 1,
+                "pointSize": 5,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "mappings": [],
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 13 },
+          "id": 7,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "editorMode": "code",
+              "expr": "scrape_samples_scraped{otel_scope_name=~\".*prometheusreceiver\", job=~\"$job\"}",
+              "legendFormat": "{{job}} - {{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Samples Scraped",
+          "type": "timeseries"
+        }
+      ],
+      "preload": false,
+      "refresh": "30s",
+      "schemaVersion": 40,
+      "tags": ["otel", "prometheus"],
+      "templating": {
+        "list": [
+          {
+            "allValue": ".*",
+            "current": { "text": "All", "value": "$__all" },
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "definition": "label_values(up{otel_scope_name=~\".*prometheusreceiver\"}, job)",
+            "includeAll": true,
+            "multi": true,
+            "name": "job",
+            "options": [],
+            "query": {
+              "query": "label_values(up{otel_scope_name=~\".*prometheusreceiver\"}, job)",
+              "refId": "StandardVariableQuery"
+            },
+            "refresh": 2,
+            "sort": 1,
+            "type": "query"
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Scrape Targets",
+      "uid": "otel-scrape-targets",
+      "version": 1,
+      "weekStart": ""
+    }
