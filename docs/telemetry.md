@@ -79,7 +79,7 @@ make -C k8s/o11y install
 In-cluster apps send OTLP to `otelcol.o11y.svc.cluster.local:4317`. Producers
 outside the cluster use `http://otlp.<tailnet>.ts.net:4318` for HTTP or `:4317`
 for gRPC; see
-[`k8s/o11y/CLAUDE-CODE-TELEMETRY.md`](../k8s/o11y/CLAUDE-CODE-TELEMETRY.md) for a
+[`docs/claude-code-telemetry.md`](claude-code-telemetry.md) for a
 worked example.
 
 One OTLP receiver serves both paths, which is safe only because

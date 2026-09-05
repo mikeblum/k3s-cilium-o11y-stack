@@ -1,13 +1,46 @@
 # Claude Code telemetry
 
-Claude Code speaks OTLP. Point it at the collector's tailnet endpoint and its
-metrics, events, and traces land in ClickHouse, queryable from Grafana.
+A worked example of pointing an OTLP producer outside the cluster at this
+stack. Claude Code speaks OTLP natively, so there is nothing to instrument: set
+the endpoint and its metrics, events, and traces land in ClickHouse, queryable
+from Grafana. Every other external producer uses the same endpoint the same way.
 
 Upstream reference: <https://code.claude.com/docs/en/monitoring-usage>
 
+## The external endpoint
+
+Producers outside the cluster send to the tailnet name, HTTP on `:4318` or gRPC
+on `:4317`. That is the whole contract for any OTLP client:
+
+```bash
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
+export OTEL_SERVICE_NAME=my-app
+```
+
+```bash
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4317
+export OTEL_SERVICE_NAME=my-app
+```
+
+`http://`, not `https://`: the endpoint is a `loadBalancerClass: tailscale`
+Service, the operator's Layer 3 proxy, DNAT over raw TCP. That is why one name
+carries both protocols — raw TCP passes HTTP/2 end to end, where an Ingress
+would be Layer 7 (`tailscale serve`, HTTP only) and could not serve gRPC at
+all. The cost of one name for both is TLS: Layer 3 has no certificate to
+terminate, hence `http://` and explicit ports. WireGuard encrypts the hop;
+tailnet membership is the auth boundary. See
+`k8s/tailscale/manifests/service-otlp.yaml`.
+
+`OTEL_SERVICE_NAME` becomes the `ServiceName` column — set it per producer.
+In-cluster workloads should use `otelcol.o11y.svc.cluster.local:4317` instead;
+that path adds pod metadata.
+
 ## Setup
 
-Add to your shell profile:
+Claude Code names itself `claude-code` and needs its own opt-in on top of the
+endpoint. Add to your shell profile:
 
 ```bash
 export CLAUDE_CODE_ENABLE_TELEMETRY=1
@@ -16,10 +49,6 @@ export OTEL_LOGS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
 ```
-
-`http://`, not `https://`: the endpoint is a Layer 3 Tailscale proxy with no
-certificate to terminate. WireGuard encrypts it; tailnet membership is the auth
-boundary. gRPC works too, on `:4317` of the same name.
 
 On the node itself, skip the tailnet. Cilium's kube-proxy replacement serves
 ClusterIPs in the host netns, so the collector answers directly:
@@ -97,31 +126,3 @@ Logs and traces keep `session.id` either way.
 `claude_code.permission_mode_changed`, `claude_code.auth`,
 `claude_code.mcp_server_connection`, `claude_code.internal_error`,
 `claude_code.plugin_installed`, `claude_code.plugin_loaded`.
-
-## Other OTLP producers
-
-Nothing here is Claude Code specific. Any OTLP client can use the same endpoint:
-
-```bash
-export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4318
-export OTEL_SERVICE_NAME=my-app
-```
-
-Or gRPC, same name, other port:
-
-```bash
-export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp.<tailnet>.ts.net:4317
-export OTEL_SERVICE_NAME=my-app
-```
-
-Both work because the endpoint is a `loadBalancerClass: tailscale` Service: the
-operator's Layer 3 proxy, DNAT over raw TCP, so it carries HTTP/2 end to end. An Ingress would be Layer 7 (`tailscale serve`, HTTP only) and could not
-serve gRPC at all. The cost of one name for both is TLS: Layer 3 has no cert,
-hence `http://` and explicit ports. See `k8s/tailscale/manifests/service-otlp.yaml`.
-
-`OTEL_SERVICE_NAME` becomes the `ServiceName` column — set it per producer.
-
-In-cluster workloads should use `otelcol.o11y.svc.cluster.local:4317` instead;
-that path adds pod metadata.
